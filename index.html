@@ -624,15 +624,28 @@
               <span class="pill bull" id="biasPill">BULLISH ORDER FLOW</span>
               <span class="pill accent" id="stagePill">STAGE 3: CHOKEPOINT</span>
             </div>
-            <div class="tf-seg">
-              <button class="tf-btn" data-tf="1">1m</button>
-              <button class="tf-btn active" data-tf="5">5m</button>
-              <button class="tf-btn" data-tf="15">15m</button>
-              <button class="tf-btn" data-tf="60">1h</button>
-              <button class="tf-btn" data-tf="240">4h</button>
+            <div style="display:flex;align-items:center;gap:8px">
+              <button class="btn" style="padding:4px 9px;font-size:11px" onclick="toggleRRTool()" id="btnToggleRR">
+                📐 Risk:Reward Box: ON
+              </button>
+              <div class="tf-seg">
+                <button class="tf-btn" data-tf="1">1m</button>
+                <button class="tf-btn active" data-tf="5">5m</button>
+                <button class="tf-btn" data-tf="15">15m</button>
+                <button class="tf-btn" data-tf="60">1h</button>
+                <button class="tf-btn" data-tf="240">4h</button>
+              </div>
             </div>
           </div>
-          <div id="tradingChart"></div>
+          <div style="position: relative; width: 100%; height: 480px;">
+            <div id="tradingChart" style="width: 100%; height: 100%;"></div>
+            <canvas id="rrOverlayCanvas" style="position: absolute; inset: 0; pointer-events: none; z-index: 5;"></canvas>
+            <div id="replayBanner" style="display:none; position: absolute; top: 12px; left: 16px; z-index: 10; background: var(--surface-3); border: 1.5px solid var(--accent); padding: 6px 14px; border-radius: 8px; font-family: var(--mono); font-size: 11.5px; color: #fff; box-shadow: 0 4px 18px rgba(0,0,0,0.7); align-items: center; gap: 8px;">
+              <span style="color:var(--accent); font-weight:800">★ REPLAYING PAST TRADE:</span>
+              <span id="replayTradeInfo" style="font-weight:700">EURUSD Long</span>
+              <button class="btn" onclick="exitTradeReplay()" style="padding: 2px 8px; font-size: 10px; margin-left: 6px; background: var(--surface); color: var(--text)">✕ Return to Live</button>
+            </div>
+          </div>
         </div>
 
         <!-- Actionable Signal & Execution Card (ICT Flux Style) -->
@@ -891,7 +904,13 @@
       });
 
       window.addEventListener('resize', () => {
-        if (state.chart) state.chart.applyOptions({ width: el.clientWidth });
+        if (state.chart) state.chart.applyOptions({ width: el.clientWidth, height: el.clientHeight });
+        drawRiskRewardTool();
+      });
+
+      // Synchronize Risk/Reward canvas on chart scroll / pan / zoom
+      state.chart.timeScale().subscribeVisibleTimeRangeChange(() => {
+        requestAnimationFrame(drawRiskRewardTool);
       });
     }
 
@@ -1034,8 +1053,233 @@
       addLine(tp1, "TP1 (+1.25R)", "#2BD47D");
       addLine(be, "BE TRIGGER (+0.78R)", "#F0B94B", 2);
 
+      // Set Active Risk:Reward Tool Box for Live / Future Execution
+      state.activeRR = {
+        direction: isBuy ? 'long' : 'short',
+        entry: entry,
+        sl: sl,
+        be: be,
+        tp1: tp1,
+        tp2: isBuy ? (entry + risk * 2.5) : (entry - risk * 2.5),
+        status: 'open'
+      };
+      drawRiskRewardTool();
+
       // Trigger Visual Toast Notification
       showToastAlert(state.symbol, isBuy ? 'BUY' : 'SELL', entry.toFixed(state.decimals), sl.toFixed(state.decimals), tp1.toFixed(state.decimals));
+    }
+
+    function toggleRRTool() {
+      state.rrEnabled = !state.rrEnabled;
+      document.getElementById('btnToggleRR').textContent = state.rrEnabled ? "📐 Risk:Reward Box: ON" : "📐 Risk:Reward Box: OFF";
+      drawRiskRewardTool();
+    }
+
+    // TradingView-Style Long / Short Risk:Reward Tool Canvas Renderer
+    function drawRiskRewardTool() {
+      const canvas = document.getElementById('rrOverlayCanvas');
+      if (!canvas || !state.chart || !state.series) return;
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+
+      if (canvas.width !== Math.floor(rect.width * dpr) || canvas.height !== Math.floor(rect.height * dpr)) {
+        canvas.width = Math.floor(rect.width * dpr);
+        canvas.height = Math.floor(rect.height * dpr);
+      }
+      ctx.save();
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, rect.width, rect.height);
+
+      if (state.rrEnabled === false) {
+        ctx.restore();
+        return;
+      }
+
+      const t = state.activeRR;
+      if (!t || !t.entry || !t.sl || !t.tp1) {
+        ctx.restore();
+        return;
+      }
+
+      const timeScale = state.chart.timeScale();
+      const x1 = t.entryTime ? timeScale.timeToCoordinate(t.entryTime) : (rect.width - 240);
+      const x2 = t.exitTime ? timeScale.timeToCoordinate(t.exitTime) : (x1 ? x1 + 180 : rect.width - 20);
+
+      const yEntry = state.series.priceToCoordinate(t.entry);
+      const yStop = state.series.priceToCoordinate(t.sl);
+      const yTarget = state.series.priceToCoordinate(t.tp2 || t.tp1);
+      const yBE = t.be ? state.series.priceToCoordinate(t.be) : null;
+      const yTP1 = state.series.priceToCoordinate(t.tp1);
+
+      if (yEntry === null || yStop === null || yTarget === null) {
+        ctx.restore();
+        return;
+      }
+
+      const boxX1 = Math.max(10, Math.min(x1 || 40, rect.width - 60));
+      const boxX2 = Math.max(boxX1 + 90, Math.min(x2 || (boxX1 + 180), rect.width - 10));
+      const boxWidth = boxX2 - boxX1;
+
+      const riskDist = Math.abs(t.entry - t.sl);
+      const rewardDist = Math.abs((t.tp2 || t.tp1) - t.entry);
+      const rrRatio = (rewardDist / (riskDist || 1)).toFixed(2);
+
+      // 1. Profit Box (Green / Emerald)
+      ctx.fillStyle = 'rgba(43, 212, 125, 0.16)';
+      ctx.strokeStyle = 'rgba(43, 212, 125, 0.85)';
+      ctx.lineWidth = 1.5;
+      const topProfitY = Math.min(yEntry, yTarget);
+      const heightProfit = Math.abs(yTarget - yEntry);
+      ctx.fillRect(boxX1, topProfitY, boxWidth, heightProfit);
+      ctx.strokeRect(boxX1, topProfitY, boxWidth, heightProfit);
+
+      // 2. Loss Box (Red / Rose)
+      ctx.fillStyle = 'rgba(255, 92, 108, 0.16)';
+      ctx.strokeStyle = 'rgba(255, 92, 108, 0.85)';
+      ctx.lineWidth = 1.5;
+      const topLossY = Math.min(yEntry, yStop);
+      const heightLoss = Math.abs(yStop - yEntry);
+      ctx.fillRect(boxX1, topLossY, boxWidth, heightLoss);
+      ctx.strokeRect(boxX1, topLossY, boxWidth, heightLoss);
+
+      // 3. Horizontal Guide Lines
+      // Entry Line
+      ctx.strokeStyle = '#5AA9FF';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(boxX1, yEntry);
+      ctx.lineTo(boxX2, yEntry);
+      ctx.stroke();
+
+      // Stop Line
+      ctx.strokeStyle = '#FF5C6C';
+      ctx.beginPath();
+      ctx.moveTo(boxX1, yStop);
+      ctx.lineTo(boxX2, yStop);
+      ctx.stroke();
+
+      // Target Line
+      ctx.strokeStyle = '#2BD47D';
+      ctx.beginPath();
+      ctx.moveTo(boxX1, yTarget);
+      ctx.lineTo(boxX2, yTarget);
+      ctx.stroke();
+
+      // BE Trigger Line
+      if (yBE !== null) {
+        ctx.strokeStyle = '#F0B94B';
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(boxX1, yBE);
+        ctx.lineTo(boxX2, yBE);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // 4. Badges & Labels
+      ctx.font = '700 11px "Geist Mono", monospace';
+      ctx.textBaseline = 'middle';
+
+      ctx.fillStyle = '#2BD47D';
+      ctx.fillText(`Target: ${(t.tp2 || t.tp1).toFixed(state.decimals)} (+${(rewardDist / riskDist).toFixed(1)}R)`, boxX1 + 8, yTarget - 10);
+
+      ctx.fillStyle = '#5AA9FF';
+      ctx.fillText(`Entry: ${t.entry.toFixed(state.decimals)}`, boxX1 + 8, yEntry - 10);
+
+      ctx.fillStyle = '#FF5C6C';
+      ctx.fillText(`Stop Loss: ${t.sl.toFixed(state.decimals)} (-1.0R)`, boxX1 + 8, yStop + 10);
+
+      if (yBE !== null) {
+        ctx.fillStyle = '#F0B94B';
+        ctx.fillText(`BE Trigger: ${t.be.toFixed(state.decimals)} (+0.78R)`, boxX1 + 8, yBE + 10);
+      }
+
+      // Center R:R Summary Box (TradingView Style)
+      const bW = 160, bH = 36;
+      const bX = boxX1 + (boxWidth - bW) / 2;
+      const bY = yEntry - bH / 2;
+      ctx.fillStyle = 'rgba(14, 16, 21, 0.94)';
+      ctx.strokeStyle = '#F0B94B';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(bX, bY, bW, bH, 6);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#F0B94B';
+      ctx.textAlign = 'center';
+      ctx.fillText(`Risk / Reward: 1 : ${rrRatio}`, bX + bW / 2, bY + 12);
+      ctx.fillStyle = t.netR !== undefined ? (t.netR > 0 ? '#2BD47D' : '#FF5C6C') : '#9AA3B5';
+      ctx.fillText(t.status === 'closed' ? `Outcome: ${t.netR > 0 ? '+' : ''}${t.netR}R | Peak +${t.mfeR}R` : `Risk: ${riskDist.toFixed(2)} | Reward: ${rewardDist.toFixed(2)}`, bX + bW / 2, bY + 25);
+      ctx.textAlign = 'left';
+
+      ctx.restore();
+    }
+
+    // Inspect & Replay Past Trade on Chart
+    function inspectPastTrade(t) {
+      if (t.symbol && t.symbol !== state.symbol) {
+        const pill = document.querySelector(`.m-pill[data-symbol="${t.symbol}"]`);
+        if (pill) switchMarket(pill);
+      }
+
+      // If trade has candle history slice attached, display it
+      if (t.candles && t.candles.length) {
+        state.candles = t.candles.map(c => ({ time: c[0], open: c[1], high: c[2], low: c[3], close: c[4] }));
+        state.series.setData(state.candles);
+        state.chart.timeScale().fitContent();
+      }
+
+      const entryP = parseFloat(t.entry_price || t.entry);
+      const stopP = parseFloat(t.stop_price || t.stop);
+      const dir = (t.direction || 'long').toLowerCase();
+      const risk = Math.abs(entryP - stopP);
+      const beP = parseFloat(t.be_trigger || (entryP + (dir === 'long' ? 0.78 : -0.78) * risk));
+      const tp1P = parseFloat(t.tp1 || t.tp1_price || (entryP + (dir === 'long' ? 1.25 : -1.25) * risk));
+      const tp2P = parseFloat(t.tp2 || t.tp2_price || (entryP + (dir === 'long' ? 2.5 : -2.5) * risk));
+
+      state.activeRR = {
+        direction: dir,
+        entry: entryP,
+        sl: stopP,
+        be: beP,
+        tp1: tp1P,
+        tp2: tp2P,
+        entryTime: t.entry_time ? Math.floor(new Date(t.entry_time).getTime() / 1000) : null,
+        exitTime: t.exit_time ? Math.floor(new Date(t.exit_time).getTime() / 1000) : null,
+        status: 'closed',
+        mfeR: t.mfe_r || 0,
+        netR: t.r !== undefined ? t.r : 0
+      };
+
+      const rb = document.getElementById('replayBanner');
+      if (rb) {
+        rb.style.display = 'flex';
+        document.getElementById('replayTradeInfo').textContent = 
+          `${t.symbol} ${dir.toUpperCase()} | Result: ${t.r > 0 ? '+' : ''}${t.r}R | Peak MFE: +${t.mfe_r || 0}R`;
+      }
+
+      drawRiskRewardTool();
+      window.scrollTo({ top: 80, behavior: 'smooth' });
+    }
+
+    function inspectPastLabTrade(idx) {
+      if (!state.lastResearchData || !state.lastResearchData.trades) return;
+      const t = state.lastResearchData.trades[idx];
+      if (!t) return;
+      t.symbol = state.lastResearchData.symbol || state.symbol;
+      // Switch tab to Radar / Chart
+      const radarBtn = document.querySelector('.nav-btn[data-tab="viewRadar"]');
+      if (radarBtn) radarBtn.click();
+      setTimeout(() => inspectPastTrade(t), 120);
+    }
+
+    function exitTradeReplay() {
+      document.getElementById('replayBanner').style.display = 'none';
+      state.activeRR = null;
+      drawRiskRewardTool();
+      subscribeMarketCandles(state.derivSymbol);
     }
 
     function clearLines() {
@@ -1154,6 +1398,7 @@
           return;
         }
 
+        window._cachedLedgerTrades = trades;
         container.innerHTML = trades.map((t, idx) => {
           const isWin = t.r > 0.10;
           const isBE = Math.abs(t.r) <= 0.10;
@@ -1161,15 +1406,18 @@
           const governorStatus = t.be_active ? "BREAKEVEN LOCKED (+0.05R Scratch)" : (isWin ? "TP1 (+1.25R Banked)" : "INITIAL STOP HIT");
 
           return `
-            <div class="trade-card">
+            <div class="trade-card" onclick="inspectPastTrade(window._cachedLedgerTrades[${idx}])" style="cursor:pointer;" title="Click to view & replay this trade on the chart">
               <div class="tc-head">
                 <div style="display:flex;align-items:center;gap:8px">
                   <span class="pill ${t.direction === 'long' ? 'bull' : 'bear'}">${t.direction.toUpperCase()}</span>
                   <span style="font-weight:800;color:#fff">${t.symbol}</span>
                   <span style="color:var(--faint)">${t.entry_time_ny || 'NY'}</span>
                 </div>
-                <div class="pill ${statusCls}">
-                  ${t.r > 0 ? '+' : ''}${t.r.toFixed(2)} R
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="font-size:10px;color:var(--accent);font-family:var(--mono)">▶ REPLAY ON CHART</span>
+                  <div class="pill ${statusCls}">
+                    ${t.r > 0 ? '+' : ''}${t.r.toFixed(2)} R
+                  </div>
                 </div>
               </div>
 
@@ -1212,8 +1460,8 @@
 
         const tbody = document.querySelector('#labAuditTable tbody');
         if (data.trades && tbody) {
-          tbody.innerHTML = data.trades.map(t => `
-            <tr>
+          tbody.innerHTML = data.trades.map((t, idx) => `
+            <tr onclick="inspectPastLabTrade(${idx})" style="cursor:pointer;" title="Click row to plot this trade & Risk:Reward tool on chart">
               <td>${t.entry_time_ny ? t.entry_time_ny.slice(5, 16) : '--'}</td>
               <td><span class="pill ${t.direction === 'long' ? 'bull' : 'bear'}">${t.direction.toUpperCase()}</span></td>
               <td>${t.archetype || 'Chokepoint'}</td>

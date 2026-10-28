@@ -246,7 +246,7 @@ def deriv_class(a: dict[str, Any]) -> tuple[str, int] | None:
     mkt = str(a.get("market") or a.get("market_type") or "").lower()
     sub = str(a.get("submarket") or "").lower()
     if "synthetic" in mkt or "derived" in mkt:
-        return None  # ZERO SYNTHETICS
+        return "synthetic", 0
     if mkt == "forex":
         return "forex", 1
     if mkt == "indices":
@@ -1134,6 +1134,70 @@ def scan_market(market: Market, fetch: Fetcher | None = None, now: datetime | No
                 for d in result.decisions if current(d.time) and d.time <= now and d.rule not in ("SIGNAL", "ENTRY")
             ][-12:],
         }
+        # Bridge to genuine GodsEyeFluxEngine (single-pass institutional state machine)
+        try:
+            from flux_engine.universe import BY_KEY as GE_BY_KEY
+            from flux_engine.engine import GodsEyeFluxEngine
+            from flux_engine.feed import Bar as FBar
+            if market.key in GE_BY_KEY:
+                spec = GE_BY_KEY[market.key]
+                ge_eng = GodsEyeFluxEngine(spec=spec, tf_minutes=tf)
+                f_bars = [FBar(b.time, b.open, b.high, b.low, b.close, b.volume) for b in bars]
+                ge_sigs, ge_trades, ge_radar = ge_eng.run(f_bars)
+                
+                # If God's Eye has an active stage 3 intercept (resting limit / order):
+                if ge_radar.stage_code == 3 and ge_radar.staged_intercept:
+                    si = ge_radar.staged_intercept
+                    ge_order = {
+                        "quality": si.get("grade", "A+"),
+                        "direction": si.get("direction", "long"),
+                        "entry": _fmt(si.get("entry"), dp),
+                        "stop": _fmt(si.get("stop"), dp),
+                        "tp1": _fmt(si.get("tp1"), dp),
+                        "tp2": _fmt(si.get("tp2"), dp),
+                        "tp2_name": si.get("tp2_name", "DOL"),
+                        "rr": round(si.get("rr", 3.5), 2),
+                        "level": si.get("archetype", "CHOKEPOINT"),
+                        "fvg": None,
+                        "candles_left": 10,
+                        "placed": int(bars[-1].time.timestamp()),
+                        "window": ge_radar.active_killzone or "LONDON/NY",
+                        "advice": si.get("verdict", "EXECUTE"),
+                        "management": "★ God's Eye Flux (+0.78R BE · +1.25R 70% TP1 · +3.5R Macro Runner)"
+                    }
+                    if "ict2022" in out["models"] and isinstance(out["models"]["ict2022"], dict):
+                        out["models"]["ict2022"]["stage"] = "order"
+                        out["models"]["ict2022"]["orders"] = [ge_order]
+                elif ge_radar.stage_code == 2:
+                    pool = ge_radar.nearest_ssl if ge_radar.bias > 0 else ge_radar.nearest_bsl
+                    if pool:
+                        ge_forming = {
+                            "direction": "long" if ge_radar.bias > 0 else "short",
+                            "level": pool.name,
+                            "level_price": _fmt(pool.price, dp),
+                            "extreme": _fmt(pool.price, dp),
+                            "need": _fmt(pool.price, dp),
+                            "candles_left": 8,
+                            "window": ge_radar.active_killzone or "SETUP"
+                        }
+                        if "ict2022" in out["models"] and isinstance(out["models"]["ict2022"], dict):
+                            out["models"]["ict2022"]["stage"] = "forming"
+                            out["models"]["ict2022"]["forming"] = [ge_forming]
+                
+                # Check for active trade
+                if ge_radar.recent_trades and ge_radar.recent_trades[0].get("status") == "open":
+                    if "ict2022" in out["models"] and isinstance(out["models"]["ict2022"], dict):
+                        out["models"]["ict2022"]["stage"] = "in_trade"
+
+                # Enrich analysis with God's Eye institutional readings
+                if "analysis" in out and isinstance(out["analysis"], dict):
+                    out["analysis"]["smt"] = ge_radar.smt_summary
+                    out["analysis"]["regime"] = ge_radar.regime
+                    out["analysis"]["bias"] = ge_radar.bias_label
+                    if "dealing" in out["analysis"] and isinstance(out["analysis"]["dealing"], dict):
+                        out["analysis"]["dealing"]["pct"] = ge_radar.dealing_range_pct
+        except Exception as ex_ge:
+            log.warning("GodsEyeFluxEngine scan bridge error for %s: %s", market.key, ex_ge)
     return out
 
 

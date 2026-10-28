@@ -161,8 +161,7 @@ def build_config(market: Market, bars: list[Bar], tf_minutes: int, mode: str, mo
                  mgmt: str | None = None):
     cfg = apply_style(auto_config(market, bars, None), tf_minutes)  # swing/long-term rules on 1h/4h
     s = management.apply(replace(cfg.strategy, model=model), tf_minutes)
-    part = 0.70 if (mgmt in ("godseye", "titanium", "ict") or not mgmt) else s.partial_at_tp1
-    if mgmt in ("godseye", "titanium", "ict") or not mgmt:
+    if mgmt in ("godseye", "titanium"):
         s = replace(s, partial_at_tp1=0.70, move_be_at_75_pct=True, move_be_at_1r=True, trim_stop_at_50_pct=True, trail_structure=True, target_pref="draw", min_rr=3.0, target_rr=3.5)
     elif mgmt == "hold":
         s = replace(s, partial_at_tp1=0.0, move_be_at_75_pct=False, move_be_at_1r=False, trim_stop_at_50_pct=False)
@@ -398,8 +397,43 @@ def research(symbol: str, tf_minutes: int = 5, days: int | None = None, mode: st
     cfg = build_config(market, bars, tf_minutes, mode, model, mgmt=mgmt)
     if not model_available(cfg.strategy, model):
         raise ValueError(f"{model} requires a market with session killzones on a 1-30 minute timeframe")
-    result = Backtester(cfg).run(bars, daily_bars=daily_bars)
-    raw_trades = [t for t in result.trades if not t.exit_reason.startswith("END")]
+    
+    from flux_engine.universe import BY_KEY as GE_BY_KEY
+    from flux_engine.engine import GodsEyeFluxEngine
+    from flux_engine.feed import Bar as FBar
+    from .backtest import Trade
+
+    is_gods_eye = clean_key in GE_BY_KEY and (mgmt == "gdeye" or model in ("ict2022", "all", "sweep", "godseye"))
+    if is_gods_eye:
+        spec = GE_BY_KEY[clean_key]
+        f_bars = [FBar(b.time, b.open, b.high, b.low, b.close, b.volume) for b in bars]
+        f_partner = [FBar(b.time, b.open, b.high, b.low, b.close, b.volume) for b in partner_bars] if partner_bars else None
+        ge_eng = GodsEyeFluxEngine(spec=spec, tf_minutes=tf_minutes, mode=mode)
+        _, ge_trades, _ = ge_eng.run(f_bars, partner_bars=f_partner)
+        raw_trades = [
+            Trade(
+                symbol=t.signal.symbol,
+                direction=1 if t.signal.direction == 1 else -1,
+                entry_time=t.entry_time,
+                entry_price=t.entry_price,
+                stop=t.stop_price,
+                target=t.tp2_price,
+                lots=1.0,
+                risk_amount=100.0,
+                exit_time=t.exit_time,
+                exit_price=t.exit_price,
+                exit_reason=t.exit_reason,
+                pnl=round(t.r_multiple * 100.0, 2),
+                r_multiple=t.r_multiple,
+                reasons=tuple(t.signal.reasons)
+            )
+            for t in ge_trades if t.status != "open"
+        ]
+        result_equity = [(b.time, 10000.0) for b in bars]
+        result = type("BacktestResultMock", (), {"trades": raw_trades, "equity_curve": result_equity, "decisions": []})()
+    else:
+        result = Backtester(cfg).run(bars, daily_bars=daily_bars)
+        raw_trades = [t for t in result.trades if not t.exit_reason.startswith("END")]
 
     # If a correlated partner market was fetched, detect SMT divergence and enrich trades
     trades = []

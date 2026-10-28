@@ -220,21 +220,25 @@ def run_research_backtest(
             "id": t.signal.id,
         })
 
-    # Build Trade Replay Chart Slices for the last 25 trades
+    # Build Trade Replay Chart Slices for all closed trades
     bar_times = [b.time for b in bars]
     replay_trades: list[dict[str, Any]] = []
     dp = spec.decimals
-    for t in closed_trades[-25:][::-1]:
-        i_in = bisect_left(bar_times, t.entry_time)
-        i_out = bisect_left(bar_times, t.exit_time)
-        lo_i = max(0, i_in - 32)
-        hi_i = min(len(bars), max(i_out, i_in) + 12, i_in + 96)
-        slice_bars = [
-            [int(b.time.timestamp()), round(b.open, dp), round(b.high, dp), round(b.low, dp), round(b.close, dp)]
-            for b in bars[lo_i:hi_i]
-        ]
+    for idx, t in enumerate(closed_trades[::-1]):
         td = engine._trade_to_dict(t)
-        td["candles"] = slice_bars
+        # Attach candle slices to the most recent 25 trades to preserve low network latency
+        if idx < 25:
+            i_in = bisect_left(bar_times, t.entry_time)
+            i_out = bisect_left(bar_times, t.exit_time)
+            lo_i = max(0, i_in - 32)
+            hi_i = min(len(bars), max(i_out, i_in) + 12, i_in + 96)
+            slice_bars = [
+                [int(b.time.timestamp()), round(b.open, dp), round(b.high, dp), round(b.low, dp), round(b.close, dp)]
+                for b in bars[lo_i:hi_i]
+            ]
+            td["candles"] = slice_bars
+        else:
+            td["candles"] = []
         replay_trades.append(td)
 
     # Verdict Summary

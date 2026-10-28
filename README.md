@@ -128,9 +128,9 @@ gods-eye-flux/
 ├── api/
 │   ├── scan.py               # Vercel serverless /api/scan endpoint
 │   └── research.py           # Vercel serverless /api/research endpoint
-├── server.py                 # Multi-threaded local Python server (port 8090)
+├── run_local.py              # Multi-threaded local Python server (port 8090)
 ├── vercel.json               # Cloud deployment configuration
-├── requirements.txt          # Lightweight dependencies (urllib3, websockets optional)
+├── requirements.txt          # Lightweight dependencies (urllib3)
 └── README.md
 ```
 
@@ -140,18 +140,15 @@ gods-eye-flux/
 
 ### Prerequisites
 - Python 3.10 or higher.
-- No heavy external dependencies required (uses Python standard library HTTP/threading + zero-config frontend).
+- Standard library HTTP/threading.
 
 ### 1. Clone & Run
 ```bash
 git clone https://github.com/Olumidenana/gods-eye-flux.git
 cd gods-eye-flux
 
-# Install dependencies (optional websocket accelerators)
-pip install -r requirements.txt
-
 # Start the local server
-python server.py
+python run_local.py
 ```
 
 ### 2. Access the Platform
@@ -160,20 +157,19 @@ Open your browser to:
 http://127.0.0.1:8090
 ```
 
-### 3. Features Available Out of the Box:
-- **Live Radar**: Click any symbol to view real-time 5m candles, BSL/SSL liquidity pools, CISD levels, and staged intercepts.
-- **Research Lab**: Select any market (e.g. `USDJPY`, `US500`, `NAS100`) and backtest up to 60 days in under 500ms to verify out-of-sample stability and MFE reach levels.
-- **Comparative Benchmark**: Click "Run Full Multi-Market Benchmark" to verify the +133.9R advantage live.
+### 3. Key Capabilities:
+- **Actionable Buy/Sell & Breakeven Alerts**: Instant audio chimes (Web Audio API) and native desktop push notifications for every Stage 3 Intercept trigger (with exact Entry, Invalidation SL, and TP levels), plus audible alerts when a trade reaches +0.78R MFE locking Breakeven.
+- **Multi-Timeframe Engine (1m, 5m, 15m, 1h, 4h)**: Seamlessly toggle between 1-minute scalping and 4-hour macro swings with 100% mathematical consistency across Radar and Research Lab.
+- **Institutional PDF & CSV Export**: Export comprehensive backtest audit reports formatted for executive presentation with a single click. Includes walk-forward metrics, comparative exit matrix, and the complete trade-by-trade ledger.
 
 ---
 
 ## 8. Deployment (Vercel)
 
-Deploy to Vercel with one command:
-```bash
-vercel --prod
-```
-The serverless functions in `api/` automatically route `/api/scan` and `/api/research`, while serving the static dashboard from `web/`.
+Deploy to Vercel with zero configuration:
+1. Connect your GitHub repository `Olumidenana/gods-eye-flux` to Vercel.
+2. Leave Environment Variables **EMPTY** (zero keys required).
+3. Click **Deploy**. Vercel will automatically serve the static dashboard and deploy `/api/scan` and `/api/research` as serverless Python functions!
 
 ---
 

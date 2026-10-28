@@ -1185,6 +1185,8 @@ class GodsEyeFluxEngine:
 
     def _trade_to_dict(self, t: TradeExecution) -> dict[str, Any]:
         dp = self.spec.decimals
+        risk_dist = abs(t.entry_price - t.stop_price)
+        be_trigger_price = t.entry_price + (0.78 * risk_dist if t.signal.direction == LONG else -0.78 * risk_dist)
         return {
             "id": t.signal.id,
             "symbol": t.signal.symbol,
@@ -1202,6 +1204,8 @@ class GodsEyeFluxEngine:
             "entry": _fmt_price(t.entry_price, dp),
             "exit": _fmt_price(t.exit_price, dp),
             "stop": _fmt_price(t.stop_price, dp),
+            "be_trigger": _fmt_price(be_trigger_price, dp),
+            "be_active": t.be_active,
             "tp1": _fmt_price(t.tp1_price, dp),
             "tp2": _fmt_price(t.tp2_price, dp),
             "tp2_name": t.signal.tp2_name,

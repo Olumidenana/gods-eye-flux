@@ -1,4 +1,4 @@
-// Service Worker: Clean cache evictor & auto-unregister
+// Self-destroying service worker to ensure instant fresh live deployment
 self.addEventListener('install', e => {
   self.skipWaiting();
 });
@@ -6,12 +6,11 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))))
-      .then(() => self.registration.unregister())
       .then(() => self.clients.claim())
   );
 });
 
 self.addEventListener('fetch', e => {
-  // Always network-first, no stale cache interception
+  // Always fetch fresh network
   e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
 });

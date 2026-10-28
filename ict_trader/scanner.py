@@ -307,7 +307,11 @@ def fetch_deriv_bulk(markets: tuple[Market, ...], mode: str, connect: Callable[[
         import websocket  # websocket-client, see requirements.txt
 
         def connect(url: str) -> Any:
-            return websocket.create_connection(url, timeout=15)
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Origin": "https://app.deriv.com",
+            }
+            return websocket.create_connection(url, header=headers, timeout=15)
 
     legacy_id = os.environ.get("DERIV_LEGACY_APP_ID", "1089")
     ws, errors = None, []

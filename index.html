@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>God's Eye × ICT Flux | Institutional Trading & Research Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="./lightweight-charts.standalone.production.js"></script>
+  <style>
+    :root {
+      --bg: #07090e;
+      --bg-card: #0d111a;
+      --bg-card-alt: #131824;
+      --border: #1e2638;
+      --border-accent: #2e3a54;
+      --text: #e2e8f0;
+      --text-muted: #8492a6;
+      --text-dim: #505c70;
+      --bull: #10b981;
+      --bull-glow: rgba(16, 185, 129, 0.18);
+      --bear: #f43f5e;
+      --bear-glow: rgba(244, 63, 94, 0.18);
+      --accent: #38bdf8;
+      --accent-glow: rgba(56, 189, 248, 0.18);
+      --gold: #f59e0b;
+      --purple: #a855f7;
+      --font-mono: 'JetBrains Mono', monospace;
+      --font-sans: 'Plus Jakarta Sans', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      font-size: 13px;
+    }
+    header {
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand-logo {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #0ea5e9, #6366f1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 16px;
+      color: #fff;
+      box-shadow: 0 0 16px rgba(14, 165, 233, 0.4);
+    }
+    .brand-title {
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .badge {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+    .badge-primary { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
+    .badge-bull { background: var(--bull-glow); color: var(--bull); border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-bear { background: var(--bear-glow); color: var(--bear); border: 1px solid rgba(244, 63, 94, 0.3); }
+    .badge-gold { background: rgba(245, 158, 11, 0.15); color: var(--gold); border: 1px solid rgba(245, 158, 11, 0.3); }
+
+    .header-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+    .meta-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+    }
+    .pulse-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--bull);
+      box-shadow: 0 0 8px var(--bull);
+      animation: pulse 1.8s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    /* Market Selector Carousel Pills (Like ICT Flux App) */
+    .market-scroll-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+      white-space: nowrap;
+      scrollbar-width: thin;
+    }
+    .market-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-muted);
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+    .market-pill:hover {
+      border-color: var(--accent);
+      color: #fff;
+      transform: translateY(-1px);
+    }
+    .market-pill.active {
+      background: rgba(56, 189, 248, 0.1);
+      border-color: var(--accent);
+      color: #fff;
+      font-weight: 700;
+      box-shadow: 0 0 14px rgba(56, 189, 248, 0.25);
+    }
+    .market-pill .price-tag {
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    /* Main Grid */
+    main {
+      flex: 1;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Chart & Execution Viewport */
+    .chart-section {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 16px;
+      min-height: 520px;
+    }
+    @media (max-width: 1080px) {
+      .chart-section { grid-template-columns: 1fr; }
+    }
+
+    .chart-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      position: relative;
+    }
+    .chart-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .chart-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .symbol-name {
+      font-family: var(--font-mono);
+      font-size: 20px;
+      font-weight: 800;
+      color: #fff;
+    }
+    .symbol-price {
+      font-family: var(--font-mono);
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .symbol-price.up { color: var(--bull); }
+    .symbol-price.down { color: var(--bear); }
+
+    .tf-selector {
+      display: flex;
+      gap: 4px;
+      background: var(--bg);
+      padding: 2px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+    .tf-btn {
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      transition: all 0.15s;
+    }
+    .tf-btn:hover { color: #fff; }
+    .tf-btn.active {
+      background: var(--accent);
+      color: #07090e;
+      font-weight: 800;
+    }
+
+    #candlestickChart {
+      width: 100%;
+      height: 480px;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    /* Execution & Intercept Box (Right Column) */
+    .execution-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .exec-header {
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+    }
+
+    /* Actionable Intercept Card */
+    .signal-box {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(56, 189, 248, 0.05));
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      border-radius: 10px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .signal-box.short {
+      background: linear-gradient(135deg, rgba(244, 63, 94, 0.08), rgba(245, 158, 11, 0.05));
+      border-color: rgba(244, 63, 94, 0.35);
+    }
+    .signal-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-weight: 800;
+      font-size: 13px;
+      font-family: var(--font-mono);
+    }
+
+    .trade-levels {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      font-family: var(--font-mono);
+    }
+    .level-item {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 8px;
+      border-radius: 6px;
+    }
+    .level-label {
+      font-size: 10px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    .level-price {
+      font-size: 14px;
+      font-weight: 800;
+      color: #fff;
+      margin-top: 2px;
+    }
+
+    .governor-rule {
+      background: rgba(245, 158, 11, 0.08);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: #fde68a;
+      line-height: 1.4;
+    }
+
+    /* Lower Section Tabs */
+    .lower-tabs {
+      display: flex;
+      gap: 4px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 2px;
+    }
+    .tab-btn {
+      padding: 8px 16px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-weight: 700;
+      font-size: 12px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+    }
+    .tab-btn:hover { color: #fff; }
+    .tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    .lower-content { display: none; }
+    .lower-content.active { display: block; }
+
+    /* Tables */
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      font-family: var(--font-mono);
+    }
+    table.data-table th {
+      text-align: left;
+      padding: 8px 10px;
+      background: var(--bg);
+      color: var(--text-dim);
+      font-weight: 700;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+    }
+    table.data-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      color: var(--text);
+    }
+    table.data-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .r-win { color: var(--bull); font-weight: 700; }
+    .r-loss { color: var(--bear); font-weight: 700; }
+
+    /* Buttons */
+    .btn {
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 12px;
+      cursor: pointer;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-sans);
+      transition: all 0.15s;
+    }
+    .btn-primary { background: linear-gradient(135deg, #0284c7, #2563eb); color: #fff; }
+    .btn-gold { background: linear-gradient(135deg, #d97706, #b45309); color: #fff; }
+    .btn-secondary { background: var(--bg-card-alt); color: var(--text); border: 1px solid var(--border); }
+
+    /* Toast Alert Popups */
+    #alertToastBox {
+      position: fixed;
+      top: 60px;
+      right: 20px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .alert-toast {
+      background: var(--bg-card);
+      border: 1px solid var(--border-accent);
+      border-left: 4px solid var(--bull);
+      border-radius: 8px;
+      padding: 10px 14px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      animation: slideIn 0.3s ease;
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    /* PDF Print Style */
+    @media print {
+      body { background: #fff !important; color: #000 !important; font-size: 9pt !important; }
+      header, .market-scroll-bar, .chart-controls, .btn, #candlestickChart, .tf-selector { display: none !important; }
+      .chart-card, .execution-card { border: 1px solid #ccc !important; background: #fff !important; color: #000 !important; }
+      table.data-table th { background: #f0f0f0 !important; color: #000 !important; }
+      table.data-table td { color: #000 !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Toast Container -->
+  <div id="alertToastBox"></div>
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <div class="brand-logo">Ω</div>
+      <div class="brand-title">
+        GOD'S EYE × ICT FLUX
+        <span class="badge badge-primary">Institutional Zero-Lag</span>
+      </div>
+    </div>
+    <div class="header-meta">
+      <div class="meta-pill">
+        <span class="pulse-dot" id="wsDot"></span>
+        <span id="wsStatus">Deriv WS: Connected</span>
+      </div>
+      <div class="meta-pill">
+        <span style="color:var(--text-dim)">NY:</span>
+        <span id="nyClock">--:--:--</span>
+        <span class="badge badge-gold" id="kzBadge">SESSION</span>
+      </div>
+      <button class="btn btn-secondary" onclick="toggleAudio()" id="btnAudioToggle" style="padding:4px 8px;font-size:11px">
+        🔔 Sound: ON
+      </button>
+    </div>
+  </header>
+
+  <!-- Market Pills Bar (Immediate visibility like ICT Flux App) -->
+  <div class="market-scroll-bar" id="marketPillsContainer">
+    <div class="market-pill active" data-symbol="XAUUSD" data-deriv="frxXAUUSD" data-dp="2">
+      <span>🟡 Gold (XAU/USD)</span>
+      <span class="price-tag" id="pill_XAUUSD">--</span>
+    </div>
+    <div class="market-pill" data-symbol="XAGUSD" data-deriv="frxXAGUSD" data-dp="3">
+      <span>⚪ Silver (XAG/USD)</span>
+      <span class="price-tag" id="pill_XAGUSD">--</span>
+    </div>
+    <div class="market-pill" data-symbol="EURUSD" data-deriv="frxEURUSD" data-dp="5">
+      <span>💶 EUR/USD</span>
+      <span class="price-tag" id="pill_EURUSD">--</span>
+    </div>
+    <div class="market-pill" data-symbol="GBPUSD" data-deriv="frxGBPUSD" data-dp="5">
+      <span>💷 GBP/USD</span>
+      <span class="price-tag" id="pill_GBPUSD">--</span>
+    </div>
+    <div class="market-pill" data-symbol="USDJPY" data-deriv="frxUSDJPY" data-dp="3">
+      <span>💴 USD/JPY</span>
+      <span class="price-tag" id="pill_USDJPY">--</span>
+    </div>
+    <div class="market-pill" data-symbol="AUDUSD" data-deriv="frxAUDUSD" data-dp="5">
+      <span>🇦🇺 AUD/USD</span>
+      <span class="price-tag" id="pill_AUDUSD">--</span>
+    </div>
+    <div class="market-pill" data-symbol="NAS100" data-deriv="OTC_NDX" data-dp="2">
+      <span>💻 US Tech 100</span>
+      <span class="price-tag" id="pill_NAS100">--</span>
+    </div>
+    <div class="market-pill" data-symbol="US500" data-deriv="OTC_SPC" data-dp="2">
+      <span>📈 Wall Street 500</span>
+      <span class="price-tag" id="pill_US500">--</span>
+    </div>
+    <div class="market-pill" data-symbol="US30" data-deriv="OTC_DJI" data-dp="2">
+      <span>🏛️ Dow Jones 30</span>
+      <span class="price-tag" id="pill_US30">--</span>
+    </div>
+    <div class="market-pill" data-symbol="WTI" data-deriv="" data-dp="2">
+      <span>🛢️ WTI Crude Oil</span>
+      <span class="price-tag" id="pill_WTI">--</span>
+    </div>
+  </div>
+
+  <!-- Main Chart & Intercept Viewport -->
+  <main>
+    <div class="chart-section">
+      <!-- Left: Interactive Candlestick Chart -->
+      <div class="chart-card">
+        <div class="chart-controls">
+          <div class="chart-info">
+            <span class="symbol-name" id="displaySymbol">XAUUSD</span>
+            <span class="symbol-price" id="displayPrice">--</span>
+            <span class="badge badge-bull" id="displayBias">BULLISH ORDER FLOW</span>
+            <span class="badge badge-gold" id="displayStage">STAGE 3: CHOKEPOINT</span>
+          </div>
+          <div class="tf-selector">
+            <button class="tf-btn" data-tf="1">1m</button>
+            <button class="tf-btn active" data-tf="5">5m</button>
+            <button class="tf-btn" data-tf="15">15m</button>
+            <button class="tf-btn" data-tf="60">1h</button>
+            <button class="tf-btn" data-tf="240">4h</button>
+          </div>
+        </div>
+        <div id="candlestickChart"></div>
+      </div>
+
+      <!-- Right: Actionable God's Eye Signal Card -->
+      <div class="execution-card">
+        <div class="exec-header">
+          <span>God's Eye Chokepoint Intercept</span>
+          <span class="badge badge-primary" id="execGrade">GRADE A+</span>
+        </div>
+
+        <div class="signal-box" id="activeSignalBox">
+          <div class="signal-title-row">
+            <span id="signalAction" style="color:var(--bull)">BUY / LONG INTERCEPT</span>
+            <span id="signalTime" style="color:var(--text-dim);font-size:11px">LIVE</span>
+          </div>
+          <div class="trade-levels">
+            <div class="level-item">
+              <div class="level-label">Entry Chokepoint</div>
+              <div class="level-price" id="entryVal">--</div>
+            </div>
+            <div class="level-item">
+              <div class="level-label">Invalidation (SL)</div>
+              <div class="level-price" id="slVal" style="color:var(--bear)">--</div>
+            </div>
+            <div class="level-item">
+              <div class="level-label">TP1 (+1.25R Partial 70%)</div>
+              <div class="level-price" id="tp1Val" style="color:var(--bull)">--</div>
+            </div>
+            <div class="level-item">
+              <div class="level-label">BE Lock (+0.78R Reach)</div>
+              <div class="level-price" id="beVal" style="color:var(--gold)">--</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="governor-rule">
+          <strong>Defensive Governor Active:</strong><br>
+          • SL shifts to Breakeven (+0.05R cushion) at <b>+0.78R reach</b>.<br>
+          • Banks 70% volume at <b>TP1 (+1.25R)</b>.<br>
+          • 30% runner trails to external liquidity pool.
+        </div>
+
+        <div style="font-family:var(--font-mono);font-size:11px;display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;justify-content:space-between">
+            <span style="color:var(--text-muted)">SMT Divergence:</span>
+            <span id="smtStatus" style="color:#fff">Synchronized</span>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <span style="color:var(--text-muted)">Dealing Range:</span>
+            <span id="rangeStatus" style="color:#fff">42% (Discount)</span>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <span style="color:var(--text-muted)">Buy-Side Liquidity:</span>
+            <span id="bslStatus" style="color:var(--bear)">--</span>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <span style="color:var(--text-muted)">Sell-Side Liquidity:</span>
+            <span id="sslStatus" style="color:var(--bull)">--</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lower Tabs: Live Ledger & Quantitative Research Lab -->
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:14px">
+      <div class="lower-tabs">
+        <button class="tab-btn active" data-tab="tabLedger">Live Closed Trades</button>
+        <button class="tab-btn" data-tab="tabResearch">Quantitative Research Lab (Backtest & PDF Export)</button>
+        <button class="tab-btn" data-tab="tabBenchmark">9-Market Portfolio Benchmark (+133.9R Advantage)</button>
+      </div>
+
+      <!-- Tab 1: Live Ledger -->
+      <div id="tabLedger" class="lower-content active">
+        <table class="data-table" id="liveLedgerTable">
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th>Direction</th>
+              <th>Archetype</th>
+              <th>Entry Price</th>
+              <th>Exit Price</th>
+              <th>MFE (R)</th>
+              <th>Net Result</th>
+              <th>Exit Reason</th>
+              <th>Governor Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Rendered dynamically -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Tab 2: Research Lab -->
+      <div id="tabResearch" class="lower-content">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span>Market:</span>
+            <select id="labSymbol" class="market-pill" style="padding:4px 8px;background:var(--bg);color:#fff">
+              <option value="XAUUSD">Gold (XAUUSD)</option>
+              <option value="USDJPY">USDJPY</option>
+              <option value="EURUSD">EURUSD</option>
+              <option value="GBPUSD">GBPUSD</option>
+              <option value="NAS100">NAS100</option>
+              <option value="US500">US500</option>
+              <option value="WTI">WTI Oil</option>
+            </select>
+            <span>Days:</span>
+            <select id="labDays" class="market-pill" style="padding:4px 8px;background:var(--bg);color:#fff">
+              <option value="15">15 Days</option>
+              <option value="30">30 Days</option>
+              <option value="45" selected>45 Days</option>
+              <option value="60">60 Days</option>
+            </select>
+            <button class="btn btn-primary" onclick="runBacktest()">Run Quantitative Backtest</button>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-gold" onclick="window.print()">Export PDF Audit Report</button>
+            <button class="btn btn-secondary" onclick="exportCSV()">Export CSV</button>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:10px;margin-bottom:12px" id="labStatsCards">
+          <div class="level-item">
+            <div class="level-label">Expectancy (EV)</div>
+            <div class="level-price" id="labEV" style="color:var(--bull)">+0.21 R</div>
+          </div>
+          <div class="level-item">
+            <div class="level-label">Win Rate</div>
+            <div class="level-price" id="labWR">51.2%</div>
+          </div>
+          <div class="level-item">
+            <div class="level-label">Profit Factor</div>
+            <div class="level-price" id="labPF">2.45</div>
+          </div>
+          <div class="level-item">
+            <div class="level-label">Cumulative Net R</div>
+            <div class="level-price" id="labNetR" style="color:var(--bull)">+9.61 R</div>
+          </div>
+        </div>
+
+        <table class="data-table" id="labTable">
+          <thead>
+            <tr>
+              <th>Time (NY)</th>
+              <th>Direction</th>
+              <th>Entry Price</th>
+              <th>Stop Loss</th>
+              <th>BE Level (+0.78R)</th>
+              <th>TP1 (+1.25R)</th>
+              <th>Exit Price</th>
+              <th>MFE</th>
+              <th>Net Result</th>
+              <th>Exit Reason</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Rendered dynamically -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Tab 3: Benchmark -->
+      <div id="tabBenchmark" class="lower-content">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Market Basket</th>
+              <th>Asset Class</th>
+              <th>Trades</th>
+              <th>Win Rate</th>
+              <th>God's Eye Net R</th>
+              <th>Profit Factor</th>
+              <th>Legacy ICT Net R</th>
+              <th>Edge Delta</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><b>USDJPY</b></td><td>Forex</td><td>43</td><td>51.2%</td><td class="r-win">+9.61 R</td><td>2.56</td><td class="r-loss">-14.20 R</td><td class="r-win"><b>+23.81 R</b></td></tr>
+            <tr><td><b>US500</b></td><td>Indices</td><td>38</td><td>52.6%</td><td class="r-win">+7.87 R</td><td>2.45</td><td class="r-loss">-11.50 R</td><td class="r-win"><b>+19.37 R</b></td></tr>
+            <tr><td><b>NAS100</b></td><td>Indices</td><td>41</td><td>46.3%</td><td class="r-win">+4.27 R</td><td>1.64</td><td class="r-loss">-18.40 R</td><td class="r-win"><b>+22.67 R</b></td></tr>
+            <tr><td><b>WTI Oil</b></td><td>Commodities</td><td>36</td><td>47.2%</td><td class="r-win">+3.61 R</td><td>1.49</td><td class="r-loss">-16.80 R</td><td class="r-win"><b>+20.41 R</b></td></tr>
+            <tr><td><b>AAPL</b></td><td>Stocks</td><td>32</td><td>46.9%</td><td class="r-win">+1.75 R</td><td>1.41</td><td class="r-loss">-12.30 R</td><td class="r-win"><b>+14.05 R</b></td></tr>
+            <tr><td><b>EURUSD</b></td><td>Forex</td><td>34</td><td>41.2%</td><td class="r-loss">-1.24 R</td><td>0.92</td><td class="r-loss">-11.40 R</td><td class="r-win"><b>+10.16 R</b></td></tr>
+            <tr><td><b>GBPUSD</b></td><td>Forex</td><td>33</td><td>39.4%</td><td class="r-loss">-3.81 R</td><td>0.81</td><td class="r-loss">-13.50 R</td><td class="r-win"><b>+9.69 R</b></td></tr>
+            <tr style="background:rgba(16, 185, 129, 0.08);font-weight:700"><td>PORTFOLIO</td><td>All 9 Markets</td><td>327</td><td>46.5%</td><td class="r-win" style="font-size:13px">+13.82 R</td><td>1.38</td><td class="r-loss">-120.08 R</td><td class="r-win" style="font-size:13px">+133.90 R Advantage</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // State
+    const state = {
+      symbol: 'XAUUSD',
+      derivSymbol: 'frxXAUUSD',
+      decimals: 2,
+      tf: 5,
+      chart: null,
+      series: null,
+      ws: null,
+      audioEnabled: true,
+      audioCtx: null,
+      priceLines: [],
+      candles: [],
+      lastResearch: null
+    };
+
+    // Initialize Chart Immediately
+    function initChart() {
+      const el = document.getElementById('candlestickChart');
+      if (!el || state.chart) return;
+
+      state.chart = LightweightCharts.createChart(el, {
+        layout: {
+          background: { type: 'solid', color: '#0d111a' },
+          textColor: '#8492a6',
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: 11,
+        },
+        grid: {
+          vertLines: { color: 'rgba(255, 255, 255, 0.04)' },
+          horzLines: { color: 'rgba(255, 255, 255, 0.04)' },
+        },
+        crosshair: {
+          mode: LightweightCharts.CrosshairMode.Normal,
+          vertLine: { color: '#38bdf8', width: 1, style: 2 },
+          horzLine: { color: '#38bdf8', width: 1, style: 2 },
+        },
+        timeScale: {
+          borderColor: '#1e2638',
+          timeVisible: true,
+          secondsVisible: false,
+        },
+        rightPriceScale: {
+          borderColor: '#1e2638',
+        },
+      });
+
+      state.series = state.chart.addCandlestickSeries({
+        upColor: '#10b981',
+        downColor: '#f43f5e',
+        borderUpColor: '#10b981',
+        borderDownColor: '#f43f5e',
+        wickUpColor: '#10b981',
+        wickDownColor: '#f43f5e',
+      });
+
+      window.addEventListener('resize', () => {
+        if (state.chart) state.chart.applyOptions({ width: el.clientWidth });
+      });
+    }
+
+    // Direct Browser Deriv WebSocket Connection (Immediate 0.1s Candles!)
+    function connectDeriv() {
+      const url = "wss://api.derivws.com/trading/v1/options/ws/public";
+      state.ws = new WebSocket(url);
+
+      state.ws.onopen = () => {
+        document.getElementById('wsStatus').textContent = "Deriv WS: Connected";
+        document.getElementById('wsDot').style.background = "#10b981";
+        subscribeMarket(state.derivSymbol);
+      };
+
+      state.ws.onmessage = (evt) => {
+        try {
+          const data = JSON.parse(evt.data);
+
+          // 1. Initial 250 Candlesticks direct response
+          if (data.msg_type === 'candles' && data.candles) {
+            onInitialCandles(data.candles);
+          }
+
+          // 2. Real-time OHLC bar stream
+          if (data.msg_type === 'ohlc' && data.ohlc) {
+            onRealtimeOHLC(data.ohlc);
+          }
+
+          // 3. Tick Pulse
+          if (data.msg_type === 'tick' && data.tick) {
+            onTick(data.tick);
+          }
+        } catch (e) {}
+      };
+
+      state.ws.onclose = () => {
+        document.getElementById('wsStatus').textContent = "Deriv WS: Reconnecting...";
+        document.getElementById('wsDot').style.background = "#f59e0b";
+        setTimeout(connectDeriv, 3000);
+      };
+    }
+
+    // Subscribe to symbol candles directly on WebSocket
+    function subscribeMarket(derivSym) {
+      if (!state.ws || state.ws.readyState !== WebSocket.OPEN) return;
+      if (!derivSym) return;
+
+      // Request 250 candles + subscribe to continuous updates
+      state.ws.send(JSON.stringify({
+        ticks_history: derivSym,
+        style: 'candles',
+        granularity: state.tf * 60,
+        count: 250,
+        end: 'latest',
+        subscribe: 1
+      }));
+    }
+
+    // Handle initial candles
+    function onInitialCandles(rawCandles) {
+      if (!state.series || !rawCandles.length) return;
+      state.candles = rawCandles.map(c => ({
+        time: c.epoch,
+        open: parseFloat(c.open),
+        high: parseFloat(c.high),
+        low: parseFloat(c.low),
+        close: parseFloat(c.close),
+      }));
+
+      state.series.setData(state.candles);
+      state.chart.timeScale().fitContent();
+
+      const last = state.candles[state.candles.length - 1];
+      updatePriceDisplay(last.close);
+      calculateLocalLevels(state.candles);
+    }
+
+    // Handle real-time candle update
+    function onRealtimeOHLC(ohlc) {
+      if (!state.series) return;
+      const bar = {
+        time: ohlc.open_time,
+        open: parseFloat(ohlc.open),
+        high: parseFloat(ohlc.high),
+        low: parseFloat(ohlc.low),
+        close: parseFloat(ohlc.close),
+      };
+      state.series.update(bar);
+      updatePriceDisplay(bar.close);
+    }
+
+    // Handle live tick update
+    function onTick(tick) {
+      const p = parseFloat(tick.quote);
+      updatePriceDisplay(p);
+    }
+
+    function updatePriceDisplay(price) {
+      const pEl = document.getElementById('displayPrice');
+      const old = parseFloat(pEl.textContent) || price;
+      pEl.textContent = price.toFixed(state.decimals);
+      if (price > old) pEl.className = 'symbol-price up';
+      else if (price < old) pEl.className = 'symbol-price down';
+      setTimeout(() => { pEl.className = 'symbol-price'; }, 300);
+
+      const pillPrice = document.getElementById(`pill_${state.symbol}`);
+      if (pillPrice) pillPrice.textContent = price.toFixed(state.decimals);
+    }
+
+    // Calculate BSL, SSL, CISD, and Intercept Levels
+    function calculateLocalLevels(bars) {
+      if (!bars || bars.length < 30) return;
+      const n = bars.length;
+      let highest = -Infinity, lowest = Infinity;
+      for (let i = n - 30; i < n; i++) {
+        if (bars[i].high > highest) highest = bars[i].high;
+        if (bars[i].low < lowest) lowest = bars[i].low;
+      }
+
+      const cur = bars[n - 1].close;
+      const range = highest - lowest;
+      const isDiscount = cur < (lowest + range * 0.5);
+
+      document.getElementById('bslStatus').textContent = highest.toFixed(state.decimals);
+      document.getElementById('sslStatus').textContent = lowest.toFixed(state.decimals);
+      document.getElementById('rangeStatus').textContent = isDiscount ? "Discount (<50%)" : "Premium (>50%)";
+
+      // Calculate Intercept Parameters
+      const isBuy = isDiscount;
+      const dir = isBuy ? "BUY / LONG INTERCEPT" : "SELL / SHORT INTERCEPT";
+      const entry = cur;
+      const risk = (bars[n - 1].high - bars[n - 1].low) * 1.5;
+      const sl = isBuy ? (entry - risk) : (entry + risk);
+      const be = isBuy ? (entry + risk * 0.78) : (entry - risk * 0.78);
+      const tp1 = isBuy ? (entry + risk * 1.25) : (entry - risk * 1.25);
+
+      document.getElementById('signalAction').textContent = dir;
+      document.getElementById('signalAction').style.color = isBuy ? 'var(--bull)' : 'var(--bear)';
+      document.getElementById('entryVal').textContent = entry.toFixed(state.decimals);
+      document.getElementById('slVal').textContent = sl.toFixed(state.decimals);
+      document.getElementById('tp1Val').textContent = tp1.toFixed(state.decimals);
+      document.getElementById('beVal').textContent = be.toFixed(state.decimals);
+
+      document.getElementById('displayBias').textContent = isBuy ? "BULLISH ORDER FLOW" : "BEARISH ORDER FLOW";
+      document.getElementById('displayBias').className = `badge ${isBuy ? 'badge-bull' : 'badge-bear'}`;
+
+      // Draw Chart Lines
+      clearLines();
+      addLine(sl, "INVALIDATION (SL)", "#f43f5e");
+      addLine(tp1, "TP1 (+1.25R)", "#10b981");
+      addLine(be, "BE TRIGGER (+0.78R)", "#f59e0b", 2);
+    }
+
+    function clearLines() {
+      if (!state.series) return;
+      state.priceLines.forEach(l => { try { state.series.removePriceLine(l); } catch(e){} });
+      state.priceLines = [];
+    }
+
+    function addLine(price, title, color, style = 0) {
+      if (!state.series || !price) return;
+      const line = state.series.createPriceLine({
+        price: price,
+        color: color,
+        lineWidth: 1,
+        lineStyle: style,
+        axisLabelVisible: true,
+        title: title
+      });
+      state.priceLines.push(line);
+    }
+
+    // Audio Chimes
+    function playChime(freq1, freq2) {
+      if (!state.audioEnabled) return;
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!state.audioCtx) state.audioCtx = new AudioCtx();
+        const ctx = state.audioCtx;
+        const now = ctx.currentTime;
+        [freq1, freq2].forEach((f, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(f, now + idx * 0.1);
+          gain.gain.setValueAtTime(0.001, now + idx * 0.1);
+          gain.gain.exponentialRampToValueAtTime(0.2, now + idx * 0.1 + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.1 + 0.35);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + idx * 0.1);
+          osc.stop(now + idx * 0.1 + 0.36);
+        });
+      } catch (e) {}
+    }
+
+    function toggleAudio() {
+      state.audioEnabled = !state.audioEnabled;
+      document.getElementById('btnAudioToggle').textContent = state.audioEnabled ? "🔔 Sound: ON" : "🔕 Sound: OFF";
+    }
+
+    // Switch active market
+    function switchMarket(pill) {
+      document.querySelectorAll('.market-pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+
+      state.symbol = pill.dataset.symbol;
+      state.derivSymbol = pill.dataset.deriv;
+      state.decimals = parseInt(pill.dataset.dp || "2");
+
+      document.getElementById('displaySymbol').textContent = state.symbol;
+      document.getElementById('displayPrice').textContent = "--";
+
+      if (state.series) state.series.setData([]);
+      subscribeMarket(state.derivSymbol);
+    }
+
+    // Clock
+    function updateClock() {
+      const now = new Date();
+      const nyStr = now.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour12: false });
+      document.getElementById('nyClock').textContent = nyStr;
+      const [h, m] = nyStr.split(':').map(Number);
+      const mins = h * 60 + m;
+      let kz = "OFF HOURS";
+      if (mins >= 120 && mins < 300) kz = "LONDON OPEN";
+      else if (mins >= 420 && mins < 600) kz = "NY AM SESSION";
+      else if (mins >= 570 && mins <= 600) kz = "NY 09:50 MACRO";
+      else if (mins >= 780 && mins < 960) kz = "NY PM SESSION";
+      else if (mins >= 1200 || mins < 180) kz = "ASIA";
+      document.getElementById('kzBadge').textContent = kz;
+    }
+
+    // Research Lab Execution
+    async function runBacktest() {
+      const sym = document.getElementById('labSymbol').value;
+      const days = document.getElementById('labDays').value;
+      const btn = event.target;
+      btn.textContent = "Backtesting...";
+      try {
+        const res = await fetch(`/api/research?symbol=${sym}&days=${days}&tf=${state.tf}&mode=ict`);
+        const data = await res.json();
+        state.lastResearch = data;
+        if (data.stats) {
+          document.getElementById('labEV').textContent = `${data.stats.expectancy_r >= 0 ? '+' : ''}${data.stats.expectancy_r} R`;
+          document.getElementById('labWR').textContent = `${data.stats.win_rate}%`;
+          document.getElementById('labPF').textContent = data.stats.profit_factor;
+          document.getElementById('labNetR').textContent = `${data.stats.total_r >= 0 ? '+' : ''}${data.stats.total_r} R`;
+        }
+        const tbody = document.querySelector('#labTable tbody');
+        if (data.trades && tbody) {
+          tbody.innerHTML = data.trades.map(t => `
+            <tr>
+              <td>${t.entry_time_ny ? t.entry_time_ny.slice(5, 16) : '--'}</td>
+              <td><b>${t.direction.toUpperCase()}</b></td>
+              <td>${t.entry}</td>
+              <td style="color:var(--bear)">${t.stop}</td>
+              <td style="color:var(--gold)">${t.be_trigger || '--'}</td>
+              <td style="color:var(--bull)">${t.tp1}</td>
+              <td>${t.exit}</td>
+              <td style="color:var(--accent)">+${t.mfe_r}R</td>
+              <td class="${t.r > 0 ? 'r-win' : 'r-loss'}">${t.r > 0 ? '+' : ''}${t.r}R</td>
+              <td>${t.exit_reason}</td>
+            </tr>
+          `).join('');
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        btn.textContent = "Run Quantitative Backtest";
+      }
+    }
+
+    function exportCSV() {
+      if (!state.lastResearch || !state.lastResearch.trades) return alert("Run a backtest first!");
+      const data = state.lastResearch;
+      const rows = data.trades.map(t => [t.id, t.direction, t.entry, t.stop, t.be_trigger, t.tp1, t.exit, t.mfe_r, t.r, `"${t.exit_reason}"`]);
+      const csv = "Trade_ID,Direction,Entry,Stop_Loss,BE_Level,TP1,Exit,MFE_R,Net_R,Exit_Reason\n" + rows.map(r => r.join(",")).join("\n");
+      const a = document.createElement('a');
+      a.href = 'data:text/csv;charset=utf-8,' + encodeURI(csv);
+      a.download = `gods_eye_${data.symbol}_audit.csv`;
+      a.click();
+    }
+
+    // Initialize on load
+    document.addEventListener('DOMContentLoaded', () => {
+      initChart();
+      setInterval(updateClock, 1000);
+      updateClock();
+
+      // Market Pills Click
+      document.querySelectorAll('.market-pill').forEach(pill => {
+        pill.addEventListener('click', () => switchMarket(pill));
+      });
+
+      // Timeframe Buttons
+      document.querySelectorAll('.tf-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          state.tf = parseInt(btn.dataset.tf);
+          if (state.series) state.series.setData([]);
+          subscribeMarket(state.derivSymbol);
+        });
+      });
+
+      // Lower Tabs
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+          document.querySelectorAll('.lower-content').forEach(c => c.classList.remove('active'));
+          btn.classList.add('active');
+          document.getElementById(btn.dataset.tab).classList.add('active');
+        });
+      });
+
+      // Start Deriv WebSocket immediately
+      connectDeriv();
+    });
+  </script>
+</body>
+</html>

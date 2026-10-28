@@ -24,12 +24,29 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
+import os
+import tempfile
 
 from .universe import BY_KEY, MarketSpec
 
 NY = ZoneInfo("America/New_York")
-CACHE_DIR = Path(__file__).resolve().parent.parent / ".cache" / "bars"
-CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+def _init_cache_dir() -> Path:
+    # Serverless (Vercel / AWS Lambda) has a read-only root directory; only /tmp is writable
+    local_dir = Path(__file__).resolve().parent.parent / ".cache" / "bars"
+    try:
+        local_dir.mkdir(parents=True, exist_ok=True)
+        return local_dir
+    except (OSError, PermissionError):
+        pass
+    tmp_dir = Path(tempfile.gettempdir()) / "gods_eye_cache" / "bars"
+    try:
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        pass
+    return tmp_dir
+
+CACHE_DIR = _init_cache_dir()
 
 DERIV_WS_URL = "wss://api.derivws.com/trading/v1/options/ws/public"
 DERIV_MAX_PAGES = 8          # 8 x 5000 requested; Deriv returns its own retention (~27 days on 5m)

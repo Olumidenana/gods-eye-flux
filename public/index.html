@@ -589,6 +589,7 @@
                   <option value="5.0">5.0R</option>
                 </select>
                 <button class="tool-btn" onclick="toggleRRTool()" id="btnToggleRR">📐 Box</button>
+                <button class="tool-btn" id="btnToggleTV" onclick="toggleTVEmbed()" title="Toggle full TradingView widget">📊 TradingView</button>
               </div>
 
               <div class="tf-group">
@@ -604,6 +605,7 @@
           <div style="position: relative; width: 100%; height: 460px;">
             <div id="tradingChart" style="width: 100%; height: 100%;"></div>
             <canvas id="rrOverlayCanvas" style="position: absolute; inset: 0; z-index: 5; cursor: crosshair;"></canvas>
+            <div id="tvEmbedWrap" style="display:none; position: absolute; inset: 0; z-index: 6; background: var(--surface);"></div>
             
             <!-- Past Trade Replay Banner -->
             <div id="replayBanner" style="display:none; position: absolute; top: 10px; left: 12px; z-index: 10; background: var(--surface); border: 1.5px solid var(--accent); padding: 5px 12px; border-radius: 7px; font-family: var(--mono); font-size: 11px; color: var(--text); box-shadow: 0 4px 14px rgba(0,0,0,0.4); align-items: center; gap: 8px;">
@@ -1073,7 +1075,7 @@
         },
         crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
         rightPriceScale: { borderColor: isLight ? '#E2DDD3' : '#252D3D', scaleMargins: { top: 0.12, bottom: 0.12 } },
-        timeScale: { borderColor: isLight ? '#E2DDD3' : '#252D3D', timeVisible: true, secondsVisible: false }
+        timeScale: { borderColor: isLight ? '#E2DDD3' : '#252D3D', timeVisible: true, secondsVisible: false, rightOffset: 35, barSpacing: 9, minBarSpacing: 4 }
       });
 
       state.series = state.chart.addCandlestickSeries({
@@ -1209,7 +1211,8 @@
       }));
 
       state.series.setData(state.candles);
-      state.chart.timeScale().fitContent();
+      state.chart.timeScale().applyOptions({ rightOffset: 35 });
+      state.chart.timeScale().scrollToRealTime();
 
       const last = state.candles[state.candles.length - 1];
       updatePriceUI(last.close);
@@ -1313,6 +1316,36 @@
       drawRiskRewardTool();
     }
 
+    
+    function toggleTVEmbed() {
+      const wrap = document.getElementById('tvEmbedWrap');
+      const btn = document.getElementById('btnToggleTV');
+      if (!wrap || !btn) return;
+      const isHidden = wrap.style.display === 'none';
+      if (isHidden) {
+        wrap.style.display = 'block';
+        btn.classList.add('active');
+        btn.textContent = "⚡ God's Eye Chart";
+        const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+        const tvSym = state.symbol === 'XAUUSD' ? 'OANDA:XAUUSD' : (state.symbol === 'NAS100' ? 'NASDAQ:NDX' : (state.symbol === 'US500' ? 'SP:SPX' : (state.symbol === 'US30' ? 'DJ:DJI' : (state.symbol === 'WTI' ? 'NYMEX:CL1!' : `FX:${state.symbol}`))));
+        const q = new URLSearchParams({
+          symbol: tvSym,
+          interval: state.tf === 60 ? '60' : (state.tf === 240 ? '240' : String(state.tf)),
+          theme: isLight ? 'light' : 'dark',
+          style: '1',
+          timezone: 'America/New_York',
+          locale: 'en',
+          toolbarbg: isLight ? '#FFFFFF' : '#0E1015'
+        });
+        wrap.innerHTML = `<iframe style="width:100%;height:100%;border:0;" src="https://s.tradingview.com/widgetembed/?${q}" allowfullscreen></iframe>`;
+      } else {
+        wrap.style.display = 'none';
+        wrap.innerHTML = '';
+        btn.classList.remove('active');
+        btn.textContent = '📊 TradingView';
+      }
+    }
+    
     function toggleRRTool() {
       state.rrEnabled = !state.rrEnabled;
       document.getElementById('btnToggleRR').textContent = state.rrEnabled ? "📐 Box: ON" : "📐 Box: OFF";
@@ -1341,13 +1374,19 @@
 
       const t = state.activeRR;
       const timeScale = state.chart.timeScale();
-      const x1 = t.entryTime ? timeScale.timeToCoordinate(t.entryTime) : (rect.width - 230);
-      const x2 = t.exitTime ? timeScale.timeToCoordinate(t.exitTime) : (x1 ? x1 + 180 : rect.width - 15);
+      
+      // Vivid projection into the wide right room (35 bars open space)
+      const lastCandle = state.candles[state.candles.length - 1];
+      const candleCoord = lastCandle ? timeScale.timeToCoordinate(lastCandle.time) : null;
+      const boxX1 = Math.max(20, (candleCoord !== null ? candleCoord : (rect.width - 280)));
+      const boxWidth = Math.min(230, Math.max(90, rect.width - boxX1 - 45));
+      const boxX2 = boxX1 + boxWidth;
 
       const yEntry = state.series.priceToCoordinate(t.entry);
       const yStop = state.series.priceToCoordinate(t.sl);
       const yTarget = state.series.priceToCoordinate(t.tp2 || t.tp1);
       const yBE = t.be ? state.series.priceToCoordinate(t.be) : null;
+      const yTP1 = t.tp1 ? state.series.priceToCoordinate(t.tp1) : null;
 
       if (yEntry === null || yStop === null || yTarget === null) {
         ctx.restore();
@@ -1355,10 +1394,6 @@
       }
 
       const isLong = t.direction === 'long';
-      const boxX1 = Math.max(10, x1 || 40);
-      const boxX2 = Math.min(rect.width - 50, x2 || (boxX1 + 180));
-      const boxWidth = Math.max(50, boxX2 - boxX1);
-
       const topProfitY = Math.min(yEntry, yTarget);
       const heightProfit = Math.abs(yTarget - yEntry);
       const topLossY = Math.min(yEntry, yStop);
@@ -1368,53 +1403,89 @@
       const rewardDist = Math.abs((t.tp2 || t.tp1) - t.entry);
       const rrRatio = riskDist > 0 ? (rewardDist / riskDist).toFixed(2) : "3.50";
 
-      // Profit Box
-      ctx.fillStyle = 'rgba(43, 212, 125, 0.14)';
-      ctx.strokeStyle = 'rgba(43, 212, 125, 0.85)';
-      ctx.lineWidth = 1;
+      // 1. Shaded Green Profit Target Zone (TradingView Style)
+      ctx.fillStyle = 'rgba(43, 212, 125, 0.18)';
+      ctx.strokeStyle = 'rgba(43, 212, 125, 0.90)';
+      ctx.lineWidth = 1.2;
       ctx.fillRect(boxX1, topProfitY, boxWidth, heightProfit);
       ctx.strokeRect(boxX1, topProfitY, boxWidth, heightProfit);
 
-      // Stop Box
-      ctx.fillStyle = 'rgba(255, 92, 108, 0.14)';
-      ctx.strokeStyle = 'rgba(255, 92, 108, 0.85)';
-      ctx.lineWidth = 1;
+      // 2. Shaded Red Invalidation Stop Zone (TradingView Style)
+      ctx.fillStyle = 'rgba(255, 92, 108, 0.18)';
+      ctx.strokeStyle = 'rgba(255, 92, 108, 0.90)';
+      ctx.lineWidth = 1.2;
       ctx.fillRect(boxX1, topLossY, boxWidth, heightLoss);
       ctx.strokeRect(boxX1, topLossY, boxWidth, heightLoss);
 
-      // BE Trigger Line
+      // 3. Entry Line (Blue)
+      ctx.strokeStyle = '#5AA9FF';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(boxX1, yEntry);
+      ctx.lineTo(boxX2, yEntry);
+      ctx.stroke();
+
+      // 4. BE Ratchet Line (Gold Dashed +0.78R)
       if (yBE !== null) {
         ctx.strokeStyle = '#F0B94B';
-        ctx.lineWidth = 1.2;
+        ctx.lineWidth = 1.3;
         ctx.setLineDash([4, 4]);
         ctx.beginPath();
         ctx.moveTo(boxX1, yBE);
-        ctx.lineTo(boxX1 + boxWidth, yBE);
+        ctx.lineTo(boxX2, yBE);
         ctx.stroke();
         ctx.setLineDash([]);
       }
 
-      // Pro Tool Badge
-      const bW = 140;
-      const bH = 30;
-      const bX = Math.min(rect.width - bW - 10, Math.max(10, boxX1 + (boxWidth - bW) / 2));
-      const bY = Math.max(6, (isLong ? topProfitY : topLossY) - bH - 5);
+      // 5. TP1 Partial Line (Green Dashed +1.25R)
+      if (yTP1 !== null) {
+        ctx.strokeStyle = '#2BD47D';
+        ctx.lineWidth = 1.1;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(boxX1, yTP1);
+        ctx.lineTo(boxX2, yTP1);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
 
-      ctx.fillStyle = 'rgba(14, 16, 21, 0.92)';
+      // 6. Vivid Right Price Tags
+      ctx.font = 'bold 9.5px JetBrains Mono, monospace';
+      ctx.textAlign = 'right';
+
+      // Target Label
+      ctx.fillStyle = '#2BD47D';
+      ctx.fillText(`TP2 (+${rrRatio}R) ${t.tp2.toFixed(state.decimals)}`, boxX2 - 4, (isLong ? topProfitY + 12 : topProfitY + heightProfit - 4));
+
+      // Stop Label
+      ctx.fillStyle = '#FF5C6C';
+      ctx.fillText(`Stop (-1.0R) ${t.sl.toFixed(state.decimals)}`, boxX2 - 4, (isLong ? topLossY + heightLoss - 4 : topLossY + 12));
+
+      // Entry Label
+      ctx.fillStyle = '#5AA9FF';
+      ctx.fillText(`Entry ${t.entry.toFixed(state.decimals)}`, boxX2 - 4, yEntry - 3);
+
+      // 7. Center Risk:Reward Ratio Badge
+      const bW = 150;
+      const bH = 32;
+      const bX = Math.min(rect.width - bW - 10, Math.max(10, boxX1 + (boxWidth - bW) / 2));
+      const bY = Math.max(6, (isLong ? topProfitY : topLossY) - bH - 6);
+
+      ctx.fillStyle = 'rgba(14, 16, 21, 0.94)';
       ctx.strokeStyle = isLong ? '#2BD47D' : '#FF5C6C';
-      ctx.lineWidth = 1.2;
+      ctx.lineWidth = 1.4;
       ctx.beginPath();
-      ctx.roundRect(bX, bY, bW, bH, 5);
+      ctx.roundRect(bX, bY, bW, bH, 6);
       ctx.fill();
       ctx.stroke();
 
       ctx.fillStyle = '#FFFFFF';
-      ctx.font = 'bold 9.5px JetBrains Mono, monospace';
+      ctx.font = 'bold 10px JetBrains Mono, monospace';
       ctx.textAlign = 'center';
       ctx.fillText(`${t.direction.toUpperCase()} · 1:${rrRatio} R:R`, bX + bW / 2, bY + 13);
       ctx.fillStyle = '#F0B94B';
-      ctx.font = '8.5px JetBrains Mono, monospace';
-      ctx.fillText(`Target +${rrRatio}R | BE +0.78R`, bX + bW / 2, bY + 23);
+      ctx.font = '9px JetBrains Mono, monospace';
+      ctx.fillText(`Target +${rrRatio}R | BE +0.78R`, bX + bW / 2, bY + 24);
       ctx.textAlign = 'left';
 
       ctx.restore();
@@ -1633,6 +1704,16 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+      // Ensure no stale Service Worker cache hijacks the UI
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(regs => {
+          for (let r of regs) r.unregister();
+        });
+      }
+      if ('caches' in window) {
+        caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+      }
+    
       initChart();
       setInterval(updateNYClock, 1000);
       updateNYClock();

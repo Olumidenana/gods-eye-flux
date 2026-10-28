@@ -3361,9 +3361,12 @@ async function openLiveChart() {
         timeVisible: true,
         secondsVisible: false,
         borderColor: c.grid,
-        rightOffset: 35,
-        barSpacing: 11,
-        minBarSpacing: 3
+        rightOffset: 65,
+        barSpacing: 12,
+        minBarSpacing: 1,
+        fixLeftEdge: false,
+        fixRightEdge: false,
+        shiftVisibleRangeOnNewBar: false
       },
       rightPriceScale: {
         borderColor: c.grid,
@@ -4383,11 +4386,8 @@ function paintIct(P, S, X, Y, B, layer, fmt) {
       P.text(x1 + 3, Y(a.top) - 2, a.label + (a.mt != null ? ` · ${f(a.mt)}` : ''), { color: c, size: 8, weight: 700 });
     });
     if (S.plan) {
-      const p = S.plan, x1 = Math.max(B.left, X(p.t0));
-      const toolWidth = Math.min(240, Math.max(80, (xr - 65) - x1));
-      const x2 = Math.min(xr - 65, x1 + toolWidth);
-      P.rect(x1, Y(p.entry), x2, Y(p.stop), { fill: 'bear', fo: .20, stroke: 'bear', so: .85, width: 1.5 });
-      P.rect(x1, Y(p.entry), x2, Y(p.tp2), { fill: 'bull', fo: .20, stroke: 'bull', so: .85, width: 1.5 });
+      // Heavy box removed: clean chart with IPDA markups only
+    }
     }
     return;
   }
@@ -4443,38 +4443,18 @@ function paintIct(P, S, X, Y, B, layer, fmt) {
     P.text(Math.max(x1 + 6, x2) + 3, y + 2.5, 'MSS', { color: 'text', size: 8.5, weight: 700, bg: true });
   }
   if (S.need) { const y = Y(S.need.p); if (inside(y)) { P.line(B.left, y, xr, y, { stroke: 'text', dash: [2, 2], so: .6 }); right.push([y, S.need.text || (C ? `MSS needs${px(S.need.p)}` : `Needs close ${f(S.need.p)} (MSS)`), 'text']); } }
-  if (S.plan) {
-    const p = S.plan, x1 = Math.max(B.left, X(p.t0)), sh = p.dir === 'short';
-    const toolWidth = Math.min(240, Math.max(80, (xr - 65) - x1));
-    const x2 = Math.min(xr - 65, x1 + toolWidth);
+    if (S.plan) {
+      const p = S.plan, x1 = Math.max(B.left, X(p.t0)), sh = p.dir === 'short';
+      P.line(x1, Y(p.entry), xr, Y(p.entry), { stroke: 'accent', width: 1.5 });
+      P.line(x1, Y(p.stop), xr, Y(p.stop), { stroke: 'bear', width: 1.2, dash: [4, 3] });
+      P.line(x1, Y(p.tp2), xr, Y(p.tp2), { stroke: 'bull', width: 1.2, dash: [4, 3] });
+      if (p.tp1 !== null) P.line(x1, Y(p.tp1), xr, Y(p.tp1), { stroke: 'sky', dash: [3, 3] });
 
-    // Open Entry Line
-    P.line(x1, Y(p.entry), x2, Y(p.entry), { stroke: 'text', width: 2 });
-    P.text(x1 + 6, Y(p.entry) - 4, `${sh ? 'Sell limit' : 'Buy limit'} ${f(p.entry)}`, { color: 'text', size: 9, weight: 700 });
-
-    // Target and Stop Info inside boxes
-    P.text(x1 + 6, Math.min(Y(p.entry), Y(p.tp2)) + 14, `Target: +${(p.rr2 || 3.5).toFixed(1)}R`, { color: 'bull', size: 9, weight: 700 });
-    P.text(x1 + 6, Math.min(Y(p.entry), Y(p.tp2)) + 26, `Reward / Risk: ${(p.rr2 || 3.5).toFixed(2)}`, { color: 'bull', size: 8, weight: 500 });
-    P.text(x1 + 6, Math.max(Y(p.entry), Y(p.stop)) - 6, `Stop: −1.00R (${f(p.stop)})`, { color: 'bear', size: 9, weight: 700 });
-
-    // BE Lock Line (+0.78R)
-    const pBe = p.entry + (p.tp2 - p.entry) * (0.78 / (p.rr2 || 3.5));
-    P.line(x1, Y(pBe), x2, Y(pBe), { stroke: 'warn', dash: [4, 3], width: 1.2 });
-    P.text(x2 - 85, Y(pBe) - 3, 'BE Lock (+0.78R)', { color: 'warn', size: 8, weight: 600 });
-
-    // TP1 Partial Banking (+1.25R)
-    const pTp1 = p.tp1 || (p.entry + (p.tp2 - p.entry) * (1.25 / (p.rr2 || 3.5)));
-    P.line(x1, Y(pTp1), x2, Y(pTp1), { stroke: 'sky', dash: [4, 3], width: 1.2 });
-    P.text(x2 - 110, Y(pTp1) - 3, 'TP1 Banked 70% (+1.25R)', { color: 'sky', size: 8, weight: 600 });
-
-    P.line(x1, Y(p.stop), x2, Y(p.stop), { stroke: 'bear', width: 1.4 });
-    P.line(x1, Y(p.tp2), x2, Y(p.tp2), { stroke: 'bull', width: 1.4 });
-
-    right.push([Y(p.tp2), `TP2 ${f(p.tp2)} · +${(p.rr2 || 3.5).toFixed(1)}R`, 'bull']);
-    right.push([Y(pTp1), `TP1 ${f(pTp1)} · +1.25R`, 'sky']);
-    right.push([Y(p.entry), `${p.market ? 'Entry' : sh ? 'Sell limit' : 'Buy limit'} ${f(p.entry)}`, 'accent']);
-    right.push([Y(p.stop), `SL ${f(p.stop)} · −1R`, 'bear']);
-  }
+      right.push([Y(p.tp2), `TP2 ${f(p.tp2)} · +${(p.rr2 || 3.5).toFixed(1)}R`, 'bull']);
+      if (p.tp1 !== null) right.push([Y(p.tp1), `TP1 ${f(p.tp1)} · +1.25R`, 'sky']);
+      right.push([Y(p.entry), `${p.market ? 'Entry' : sh ? 'Sell limit' : 'Buy limit'} ${f(p.entry)}`, 'accent']);
+      right.push([Y(p.stop), `SL ${f(p.stop)} · −1R`, 'bear']);
+    }
   S.marks.forEach(m => {
     const x = X(m.t), y = Y(m.p); if (x < B.left || x > xr) return;
     if (m.kind === 'sweep') {

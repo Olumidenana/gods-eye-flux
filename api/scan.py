@@ -21,7 +21,7 @@ from ict_trader import access, ratelimit, snapshot  # noqa: E402
 # lands a minute after every 5-minute candle closes, so this only lapses if the cron stops).
 FRESH_S = 7 * 60
 STALE_S = 24 * 3600  # Up to 24 hours: serving a cached scan avoids cold-start timeouts and browser AbortErrors
-SCAN_TOP_KEYS = {"XAUUSD", "GBPUSD", "EURUSD", "US500", "NAS100", "USDJPY", "USDCHF", "AUDUSD", "USDCAD", "NZDUSD", "R_75", "R_100", "1HZ75V", "1HZ100V"}
+SCAN_TOP_KEYS = {"XAUUSD", "GBPUSD", "EURUSD", "US500", "NAS100", "USDJPY", "USDCHF", "AUDUSD", "USDCAD", "NZDUSD", "XAGUSD", "WTI", "US30"}
 
 _SCAN_CACHE: dict[str, tuple[float, str]] = {}
 

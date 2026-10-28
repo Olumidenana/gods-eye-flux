@@ -1294,10 +1294,8 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,su
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:4px">
           <span class="faint" style="font-size:12px;font-weight:600">Trade management & exits</span>
           <span style="display:inline-flex;gap:4px">
-            <button class="btn sm primary" id="rsMgmtTitanium" type="button" style="padding:1px 8px;font-size:11px">★ Titanium (Recommended)</button>
+            <button class="btn sm primary" id="rsMgmtGodseye" type="button" style="padding:1px 8px;font-size:11px">★ God's Eye Flux (+0.78R BE · +1.25R Partial · +3.5R Runner)</button>
             <button class="btn sm" id="rsMgmtAll" type="button" style="padding:1px 6px;font-size:11px">Select all</button>
-            <button class="btn sm" id="rsMgmtBoth" type="button" style="padding:1px 6px;font-size:11px">Titanium + Hold</button>
-            <button class="btn sm" id="rsMgmtRunners" type="button" style="padding:1px 6px;font-size:11px">5R–20R Runners</button>
           </span>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap" id="rsMgmts"></div>
@@ -6051,32 +6049,24 @@ function rsDayPresets() {
   ];
 }
 const RS_MGMTS = [
-  ['titanium', 'Titanium Target Delivery (+1.0R BE · +1.5R 50% TP1 · DOL Runner)'],
+  ['godseye', '★ God\'s Eye Flux (+0.78R BE · +1.25R 70% TP1 · +3.5R Macro Runner)'],
   ['ict', 'ICT Standard (TP1 Partial + 75% BE)'],
   ['hold', 'Hold to Target (No early BE / Runner full ride)'],
   ['pd_array', 'HTF PD-Array / Draw on Liquidity'],
-  ['sd', 'Fib Standard Deviation (-2 SD / -4 SD Projections)'],
-  ['fixed2', 'Fixed 2R Target'],
-  ['fixed3', 'Fixed 3R Target'],
-  ['fixed5', 'Fixed 5R Target'],
-  ['fixed10', 'Fixed 10R Runner Target'],
-  ['fixed20', 'Fixed 20R Moonshot Runner Target'],
+  ['fixed3', 'Fixed 3.5R Target']
 ];
 const RS_MGMT_LABELS = {
-  titanium: 'Titanium Delivery',
+  godseye: "God's Eye Flux",
+  titanium: "God's Eye Flux",
   ict: 'ICT Standard',
   hold: 'Hold to Target',
   pd_array: 'PD-Array Draw',
-  sd: 'Fib SD Projections',
-  fixed2: 'Fixed 2R',
-  fixed3: 'Fixed 3R',
-  fixed5: 'Fixed 5R',
-  fixed10: 'Fixed 10R',
-  fixed20: 'Fixed 20R runner',
+  fixed3: 'Fixed 3.5R'
 };
-const rsMgmtName = m => RS_MGMT_LABELS[m] || m || 'Titanium Delivery';
-const rs = Object.assign({ syms: ['EURUSD', 'GBPUSD'], tfs: [5], modes: ['ict'], models: ['ict2022'], days: null, fromDate: null, mgmts: ['titanium'], extra: [] }, store.get('rs.sel', {}));
+const rsMgmtName = m => RS_MGMT_LABELS[m] || m || "God's Eye Flux";
+const rs = Object.assign({ syms: ['frxXAUUSD', 'frxEURUSD', 'frxGBPUSD'], tfs: [5, 15], modes: ['ict'], models: ['ict2022'], days: null, fromDate: null, mgmts: ['godseye'], extra: [] }, store.get('rs.sel', {}));
 if (!rs.models) rs.models = ['ict2022'];
+if (!rs.mgmts || !Array.isArray(rs.mgmts) || !rs.mgmts.length) rs.mgmts = ['godseye'];
 if (!rs.mgmts || !Array.isArray(rs.mgmts) || !rs.mgmts.length) rs.mgmts = ['godseye'];
 let rsResults = [], rsSel = null, rsRunning = false;
 // Choices saved before the picker existed can be typed codes ("GBPUSD" for frxGBPUSD) that Deriv

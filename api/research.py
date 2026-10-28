@@ -33,11 +33,11 @@ class handler(BaseHTTPRequestHandler):
             days = int(g("days")) if g("days") else None
             if days is not None:
                 days = max(1, min(days, 1825 if tf >= 240 else 365))
-            symbol = g("symbol", "XAUUSD")
+            symbol = g("symbol", "frxXAUUSD")
             if not symbol.replace("_", "").isalnum() or len(symbol) > 20:
                 raise ValueError("bad symbol")
             label = (g("label") or "")[:40] or None
-            mgmt = g("mgmt") or "ict"
+            mgmt = g("mgmt") or "godseye"
             body = research(symbol, tf, days, g("mode", "ict"), label=label, model=g("model", "ict2022"), cls=g("cls"), mgmt=mgmt)
             self._send(200, body, 21600)
         except (ValueError, LookupError) as e:

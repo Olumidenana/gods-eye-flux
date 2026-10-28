@@ -34,12 +34,12 @@ from .models import MODEL_INFO, MODELS, is_model, label_of, make_strategy, model
 from .scanner import DERIV_URLS, MARKETS, Market, _deriv_candles, apply_style, auto_config
 from .sessions import Bar, to_ny
 
-SYNTHETICS: dict[str, str] = {
-    "R_10": "Volatility 10 Index", "R_25": "Volatility 25 Index", "R_50": "Volatility 50 Index",
-    "R_75": "Volatility 75 Index", "R_100": "Volatility 100 Index",
-    "1HZ10V": "Volatility 10 (1s) Index", "1HZ25V": "Volatility 25 (1s) Index", "1HZ50V": "Volatility 50 (1s) Index",
-    "1HZ75V": "Volatility 75 (1s) Index", "1HZ100V": "Volatility 100 (1s) Index",
+FOREX_METALS: dict[str, str] = {
+    "frxXAUUSD": "Gold / USD", "frxXAGUSD": "Silver / USD",
+    "frxEURUSD": "EUR/USD", "frxGBPUSD": "GBP/USD", "frxUSDJPY": "USD/JPY",
+    "frxAUDUSD": "AUD/USD", "frxUSDCAD": "USD/CAD", "frxNZDUSD": "NZD/USD",
 }
+SYNTHETICS = FOREX_METALS
 # Every candle size Deriv serves: 1-15 min use the killzones, 30 min keeps them, 1 h and up run at any hour.
 TIMEFRAMES = (1, 2, 3, 5, 10, 15, 30, 60, 120, 240, 480, 1440)
 # How far back each timeframe goes: enough trades to judge, inside the 60 s function limit.
@@ -157,9 +157,9 @@ def build_config(market: Market, bars: list[Bar], tf_minutes: int, mode: str, mo
                  mgmt: str | None = None):
     cfg = apply_style(auto_config(market, bars, None), tf_minutes)  # swing/long-term rules on 1h/4h
     s = management.apply(replace(cfg.strategy, model=model), tf_minutes)
-    part = s.partial_at_tp1 if not mgmt else (0.5 if mgmt in ("titanium", "ict") else s.partial_at_tp1)
-    if mgmt in ("titanium", "ict") or not mgmt:
-        s = replace(s, partial_at_tp1=part, move_be_at_75_pct=True, move_be_at_1r=True, trim_stop_at_50_pct=True, trail_structure=True, target_pref="draw")
+    part = 0.70 if (mgmt in ("godseye", "titanium", "ict") or not mgmt) else s.partial_at_tp1
+    if mgmt in ("godseye", "titanium", "ict") or not mgmt:
+        s = replace(s, partial_at_tp1=0.70, move_be_at_75_pct=True, move_be_at_1r=True, trim_stop_at_50_pct=True, trail_structure=True, target_pref="draw", min_rr=3.0, target_rr=3.5)
     elif mgmt == "hold":
         s = replace(s, partial_at_tp1=0.0, move_be_at_75_pct=False, move_be_at_1r=False, trim_stop_at_50_pct=False)
     elif mgmt == "fixed2":
@@ -537,7 +537,7 @@ def research(symbol: str, tf_minutes: int = 5, days: int | None = None, mode: st
         "from": bars[0].time.isoformat(), "to": bars[-1].time.isoformat(), "candles": len(bars),
         "calendar_days": round(span_days, 1), "trading_days": trading_days,
         "requested_days": days, "complete": span_days >= days * 0.9,
-        "mgmt": mgmt or "titanium",
+        "mgmt": mgmt or "godseye",
         "setups_per_day": round(stats["trades"] / trading_days, 2) if trading_days else 0,
         "stats": {k: (round(v, 3) if isinstance(v, float) and v != float("inf") else (None if v == float("inf") else v))
                   for k, v in stats.items()},

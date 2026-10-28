@@ -1102,7 +1102,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,su
       <div>
         <div style="display:flex;align-items:center;gap:8px">
           <span class="pill accent" style="font-weight:700;letter-spacing:.04em">CORE ENGINE</span>
-          <b style="font-size:16px">Titanium-Target-Delivery</b>
+          <b style="font-size:16px">God's-Eye-Flux-Delivery</b>
         </div>
         <p class="muted" style="margin:4px 0 0;font-size:12.5px">Unified Institutional Order Flow · Anti-Ruin +1.0R Breakeven · +1.5R 50% TP1 · HTF Narrative Alignment</p>
       </div>
@@ -1262,13 +1262,13 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,su
 <!-- ================= RESEARCH ================= -->
 <section class="view" id="v-research">
   <div class="sec-head">
-    <div><h2>Research lab</h2><p>Institutional backtesting and structural verification engine. Test unified ICT order flow, 20d/40d/60d IPDA dealing ranges, and Titanium trade management over months of real market candles on any execution timeframe, across Forex Majors, Gold, US Indices, and Synthetics.</p></div>
+    <div><h2>Research lab</h2><p>God's Eye Flux institutional backtesting and structural verification engine. Test unified ICT order flow, 20d/40d/60d IPDA dealing ranges, +0.78R BE locks, +1.25R 70% partial banking, and +3.5R macro runner targets over historical candles on Forex Majors and Gold.</p></div>
   </div>
-  <div class="notice" style="margin-bottom:16px;background:var(--surface);border-left:3px solid var(--accent);padding:10px 14px;border-radius:6px"><span>🏛️</span><span><b style="color:var(--text)">Multi-Asset Institutional Verification:</b> Forex, Metals, and US Indices operate with live New York Killzone session timing (London 02:00–05:00 NY, NY AM 08:30–11:00 NY, Silver Bullet 10:00–11:00 NY). Synthetic indices (Deriv Volatility) operate 24/7 with <b>Pure Price Action</b> (time zones inactive, pure fractal structure). Both asset classes enforce the 20d, 40d, and 60d IPDA institutional dealing ranges and Anti-Ruin +1.0R Breakeven locks.</span></div>
+  <div class="notice" style="margin-bottom:16px;background:var(--surface);border-left:3px solid var(--accent);padding:10px 14px;border-radius:6px"><span>👁️</span><span><b style="color:var(--text)">God's Eye Institutional Verification (Forex &amp; Gold Only):</b> Forex Majors and Gold/Silver operate with live New York Killzone session timing (London 02:00–05:00 NY, NY AM 08:30–11:00 NY, Silver Bullet 10:00–11:00 NY). All backtests enforce IPDA institutional dealing ranges, +0.78R Anti-Ruin Breakeven locks, +1.25R 70% partial banking, and +3.5R macro runner targets. Indices and synthetic volatility are completely excluded.</span></div>
   <div class="card pad">
     <div class="faint" style="font-size:12px;font-weight:600;margin-bottom:8px">Markets</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap" id="rsSyms"></div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;align-items:center"><span class="faint" style="font-size:12.5px;font-weight:600">Quick pick</span><button class="btn sm" data-rspreset="core" title="US 500, US Tech 100, Wall Street 30, EUR/USD, GBP/USD: the markets ICT trades on screen in the 2022 Mentorship">ICT's core markets</button><button class="btn sm" data-rspreset="mentioned" title="USD/CAD, AUD/USD, USD/JPY, gold, silver, crude: named in his teaching but not shown being traded in the mentorship frames">+ markets he mentions</button><button class="btn sm" data-rspreset="none">Clear</button></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;align-items:center"><span class="faint" style="font-size:12.5px;font-weight:600">Quick pick</span><button class="btn sm" data-rspreset="core" title="Gold &amp; Silver: Core God's Eye execution markets">God's Eye Core (Gold &amp; Silver)</button><button class="btn sm" data-rspreset="mentioned" title="EUR/USD, GBP/USD, USD/JPY, AUD/USD, USD/CAD, NZD/USD">+ Forex Majors</button><button class="btn sm" data-rspreset="none">Clear</button></div>
     <div class="field" style="margin-top:10px;max-width:420px"><input id="rsSearch" placeholder="Search markets: gold, EUR, Nasdaq, Volatility…" autocomplete="off"></div>
     <div class="chips" id="rsCats" style="margin-top:8px"></div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;max-height:220px;overflow:auto" id="rsPick"></div>
@@ -3292,11 +3292,12 @@ function dropStage(m) {
   } catch { return ''; }
 }
 // Deriv symbols the chart can always show, straight from Deriv, even if the scanner is down.
-const DERIV_BASIC = [['frxXAUUSD', 'Gold / USD', 'metal'], ['frxEURUSD', 'EUR/USD', 'forex'], ['frxGBPUSD', 'GBP/USD', 'forex'],
-  ['frxUSDJPY', 'USD/JPY', 'forex'], ['frxAUDUSD', 'AUD/USD', 'forex'], ['frxUSDCAD', 'USD/CAD', 'forex']]
+const DERIV_BASIC = [['frxXAUUSD', 'Gold / USD', 'metal'], ['frxXAGUSD', 'Silver / USD', 'metal'],
+  ['frxEURUSD', 'EUR/USD', 'forex'], ['frxGBPUSD', 'GBP/USD', 'forex'], ['frxUSDJPY', 'USD/JPY', 'forex'],
+  ['frxAUDUSD', 'AUD/USD', 'forex'], ['frxUSDCAD', 'USD/CAD', 'forex'], ['frxNZDUSD', 'NZD/USD', 'forex']]
   .map(([broker_symbol, label, cls]) => ({ broker_symbol, label, cls, ok: true, basic: true, today: { signals: [] } }));
 function lcMarkets() {
-  let ms = (DS() && DS().markets || []).filter(m => m.ok && m.cls !== 'synthetic' && !String(m.broker_symbol || m.key).startsWith('R_') && !String(m.broker_symbol || m.key).startsWith('1HZ')).map(m => m.broker_symbol ? m : { ...m, broker_symbol: m.key });
+  let ms = (DS() && DS().markets || []).filter(m => m.ok && m.cls !== 'synthetic' && m.cls !== 'index' && !String(m.broker_symbol || m.key).startsWith('R_') && !String(m.broker_symbol || m.key).startsWith('1HZ') && !String(m.broker_symbol || m.key).startsWith('OTC_')).map(m => m.broker_symbol ? m : { ...m, broker_symbol: m.key });
   // Every other market Deriv offers can be charted too (the candles come straight from Deriv); it just has no engine read yet.
   const scanned = new Set(ms.map(m => m.broker_symbol));
   const more = (derivAll.list || []).filter(m => !scanned.has(m.symbol)).map(m => ({ broker_symbol: m.symbol, label: m.label, cls: m.cls, ok: true, basic: true, today: { signals: [] } }));
@@ -5557,7 +5558,7 @@ async function atApi(op, { method = 'GET', body } = {}) {
   if (!r.ok) { const e = new Error(d.error || `Server returned ${r.status}`); e.status = r.status; throw e; }
   return d;
 }
-const AT_CLASSES = [['strict', 'ICT strict only'], ['forex', 'Forex'], ['metal', 'Metals'], ['index', 'Indices'], ['crypto', 'Crypto'], ['energy', 'Energy'], ['synthetic', 'Synthetic indices']];
+const AT_CLASSES = [['strict', 'ICT strict only'], ['forex', 'Forex'], ['metal', 'Metals'],  ['crypto', 'Crypto'], ['energy', 'Energy'], ['synthetic', 'Synthetic indices']];
 function atSettingsHtml(v = {}) {
   const cls = v.classes || ['forex', 'metal', 'index'];
   return `<div class="grid g4">
@@ -6064,7 +6065,7 @@ const RS_MGMT_LABELS = {
 const rsMgmtName = m => RS_MGMT_LABELS[m] || m || 'Titanium Delivery';
 const rs = Object.assign({ syms: ['EURUSD', 'GBPUSD'], tfs: [5], modes: ['ict'], models: ['ict2022'], days: null, fromDate: null, mgmts: ['titanium'], extra: [] }, store.get('rs.sel', {}));
 if (!rs.models) rs.models = ['ict2022'];
-if (!rs.mgmts || !Array.isArray(rs.mgmts) || !rs.mgmts.length) rs.mgmts = ['titanium'];
+if (!rs.mgmts || !Array.isArray(rs.mgmts) || !rs.mgmts.length) rs.mgmts = ['godseye'];
 let rsResults = [], rsSel = null, rsRunning = false;
 // Choices saved before the picker existed can be typed codes ("GBPUSD" for frxGBPUSD) that Deriv
 // rejects. Map each to the real market, or drop it if nothing matches.
@@ -6109,7 +6110,7 @@ document.addEventListener('click', e => {
   if (e.target.id === 'rsTfIntra') { rsTickTfs([5, 15, 60]); return; }
   if (e.target.id === 'rsTfSwing') { rsTickTfs([240, 1440]); return; }
   if (e.target.id === 'rsTfClear') { rsTickTfs([]); return; }
-  if (e.target.id === 'rsMgmtTitanium') { rs.mgmts = ['titanium']; rsSave(); rsChips(); return; }
+  if (e.target.id === 'rsMgmtGodseye' || e.target.id === 'rsMgmtTitanium') { rs.mgmts = ['godseye']; rsSave(); rsChips(); return; }
   if (e.target.id === 'rsMgmtAll') { rs.mgmts = RS_MGMTS.map(([k]) => k); rsSave(); rsChips(); return; }
   if (e.target.id === 'rsMgmtBoth') { rs.mgmts = ['titanium', 'hold']; rsSave(); rsChips(); return; }
   if (e.target.id === 'rsMgmtRunners') { rs.mgmts = ['pd_array', 'fixed5', 'fixed10', 'fixed20']; rsSave(); rsChips(); return; }
@@ -7150,10 +7151,10 @@ function ledgerStats(list) {
     pf: gl > 0 ? gw / gl : gw > 0 ? Infinity : null };
 }
 const MKT_GROUPS = [
-  ['all', 'All real markets'],
+  ['all', 'All markets (Gold & Forex)'],
   ['forex', 'Forex'],
   ['metal', 'Metals & Commodities'],
-  ['index', 'Indices']
+  
 ];
 const mktGroupOf = obj => {
   const c = obj && (obj.cls || (obj.m && obj.m.cls) || '');

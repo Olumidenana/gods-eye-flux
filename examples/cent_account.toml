@@ -1,0 +1,89 @@
+# USD Cent (USC) Account Configuration
+# Converts low capital into 100x USC (e.g. $10 deposit = 1,000 cents; $50 = 5,000 cents).
+# Enables mathematically pure institutional 0.5% - 1.0% risk per trade on micro-balances.
+#
+# Rules Implemented:
+# - SA-01: USC cent balance scaling
+# - RK-01 / RK-02 / RK-03: Dynamic risk reduction after consecutive losses
+# - FV-01 / FV-02: 3-candle Fair Value Gap in Premium/Discount
+# - SW-02: Liquidity purge sequence
+# - SL-04 / SL-05: 50% stop trimming & 75% Breakeven lock
+
+initial_equity = 1000.0      # 1,000 cents = $10.00 USD deposit
+
+[instrument]
+symbol = "GBPUSDc"           # Cent account broker symbol
+asset_class = "forex"
+is_cent_account = true
+pip_size = 0.0001
+spread_pips = 1.2
+contract_size = 100000       # cent-denominated contract
+commission_per_lot = 0.0
+quote_to_account_rate = 1.0
+volume_step = 0.01
+min_lots = 0.01
+
+[strategy]
+timeframe_minutes = 5
+day_rollover = "17:00"
+killzones = [
+  { name = "london",   start = "02:00", end = "05:00" },
+  { name = "new_york", start = "07:00", end = "10:00" },
+]
+reference_ranges = [
+  { name = "asia", start = "20:00", end = "00:00" },
+]
+use_prior_day_levels = true
+invalidate_levels_taken_outside_killzone = true
+min_sweep_pips = 0.5
+max_confirm_bars = 3
+stop_buffer_pips = 1.0
+min_stop_pips = 4.0
+max_stop_pips = 20.0
+
+target_mode = "opposite_level"
+target_rr = 2.5
+min_rr = 1.5
+
+# Core ICT Filters
+require_fvg = true
+fvg_in_premium_discount = true
+enforce_liquidity_purge_order = true
+
+# Intraday Stop Trimming (SL-04, SL-05)
+trim_stop_at_50_pct = true
+move_be_at_75_pct = true
+
+max_signals_per_day = 1
+flatten_time = "16:00"
+
+[risk]
+risk_per_trade_pct = 1.0     # 1% of 1000 cents = 10 cents ($0.10) institutional risk!
+max_daily_loss_pct = 3.0
+max_weekly_loss_pct = 6.0
+max_consecutive_losses = 3
+max_trades_per_day = 2
+max_open_positions = 1
+max_lots = 1.0
+
+# Ep 41 Dynamic Risk Reduction (RK-02, RK-03)
+enable_dynamic_risk_reduction = true
+loss_recovery_threshold_pct = 50.0
+
+[news]
+enabled = true
+impacts = ["high"]
+minutes_before = 30
+minutes_after = 30
+flatten_minutes_before = 5
+
+[live]
+platform = "mt5"
+bridge_timeout_seconds = 15
+server_timezone = "NY+7"
+poll_seconds = 5
+magic = 20261002
+deviation_points = 10
+max_signal_age_seconds = 120
+kill_switch_file = "STOP"
+journal_path = "journal_cent_account.sqlite"

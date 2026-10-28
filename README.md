@@ -1,177 +1,237 @@
-# God's Eye × ICT Flux (Institutional V2)
+# ICT Time-and-Price trading system
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg)](LICENSE)
-[![Zero Lag](https://img.shields.io/badge/Feed-Zero--Lag%20WebSocket-cyan.svg)](#zero-lag-hybrid-feed-architecture)
-[![Universe](https://img.shields.io/badge/Universe-Forex%20%7C%20Metals%20%7C%20Indices%20%7C%20Commodities-gold.svg)](#curated-non-synthetic-universe)
+A transparent, rules-based implementation of the proposal's single strategy:
 
-> **A high-expectancy, ultra-lightweight institutional trading engine and quantitative research lab designed to intercept high-probability institutional order flow with zero synthetic/RNG indices and zero lag.**
+1. **Killzone**: look for setups only inside fixed New York-time windows.
+2. **Time and Price**: inside the window, wait for price to sweep a reference level
+   (prior-day or Asia-range high/low), then close back inside it. Enter on the next bar.
+3. **Fundamentals filter**: no entries around high-impact news, and flatten before it.
+4. **Hard risk limits**: fixed % risk per trade, daily/weekly loss floors, a
+   consecutive-loss halt and trade-count caps. Nothing can override them.
 
----
+Deterministic, no machine learning: every signal carries the rule IDs that produced it
+([RULES.md](RULES.md)). The backtester and the live runner call the *same* strategy and
+risk code, so what you validate is exactly what trades.
 
-## 1. Why the Legacy ICT Flux Engine Failed (Mathematical Teardown)
+The core is pure Python 3.11+ standard library. Live trading works with **MetaTrader 5**
+(optional `MetaTrader5` package) or **MetaTrader 4** (the included `ICTBridge` EA).
 
-The previous engine attempted to run 35+ combinatorial models simultaneously over lagging price structures. Empirical backtesting over 45 days of 5-minute institutional candles revealed why it suffered severe drawdown (`-120.08R` net loss):
+## Quick start
 
-| Legacy Vulnerability | Quantitative Mechanism | God's Eye Institutional Solution |
-| :--- | :--- | :--- |
-| **Lagging Daily Bias Trap** | Used prior day close ($D-1$ vs $D-2$) to determine bias. On inside days or mean-reversion sessions, the engine repeatedly bought high or sold low into major support/resistance. | **Multi-Day Structural Regime ($O(N)$)**: Identifies 4H/1H swing pivots, dealing range discount/premium (50% EQ), and 5-day directional flow. Never fades secular macro trends. |
-| **Adverse Selection on Limit Orders** | Placed limit orders at FVG / Order Block levels *after* huge displacement candles had already traveled 70%+ of their expected ADR toward the target. When filled, the move was exhausted, resulting in immediate stop-outs. | **Displacement Exhaustion Veto**: Limits must intercept within the initial 30% of the impulse wave. Stale limit orders are immediately canceled if price reaches within 20% of target prior to fill. |
-| **All-or-Nothing Exit Trap** | Held every trade rigidly to fixed 3R–5R targets without moving stops. Empirical MFE data proved that **71.4% of trades reached +0.78R to +1.25R** before reversing into full -1.0R losses. | **Defensive Dual-Tranche Governor**: <br>1. Locks stop to Breakeven (+0.05R cushion) once price touches **+0.78R**.<br>2. Takes **70% partial profit at +1.25R (TP1)**.<br>3. Lets remaining 30% runner trail into external liquidity pools (TP2). |
-| **Combinatorial Scanner Bloat** | Iterated over 14+ model loops per market, running serial 2,000-candle loops that caused 45-second latency timeouts. | **Single-Pass State Machine**: One pass over price arrays calculates Liquidity Pools, CISD, FVG, SMT Divergence, and Governor rules in **< 15 milliseconds** per market. |
-
----
-
-## 2. 45-Day 5-Minute Verified Benchmark
-
-Benchmarked on **45 days of continuous real institutional 5-minute candles** across 9 major non-synthetic markets:
-
-```
-========================================================================================
-Market Basket     Asset Class   Trades   Win Rate   God's Eye Net R   Legacy ICT Net R   Edge Delta
-========================================================================================
-USDJPY            Forex          43       51.2%        +9.61 R           -14.20 R         +23.81 R
-US500             Indices        38       52.6%        +7.87 R           -11.50 R         +19.37 R
-NAS100            Indices        41       46.3%        +4.27 R           -18.40 R         +22.67 R
-WTI Oil           Commodities    36       47.2%        +3.61 R           -16.80 R         +20.41 R
-AAPL              Stocks         32       46.9%        +1.75 R           -12.30 R         +14.05 R
-NVDA              Stocks         35       42.9%        +0.42 R           -19.20 R         +19.62 R
-EURUSD            Forex          34       41.2%        -1.24 R           -11.40 R         +10.16 R
-GBPUSD            Forex          33       39.4%        -3.81 R           -13.50 R          +9.69 R
-XAUUSD (Gold)     Metals         35       37.1%        -8.66 R            -2.78 R          -5.88 R
-----------------------------------------------------------------------------------------
-PORTFOLIO TOTAL:                327       46.5%       +13.82 R          -120.08 R        +133.90 R
-========================================================================================
-```
-
-> **Result**: God's Eye delivered a **+133.90R net improvement** over Legacy ICT Flux on the exact same institutional candles.
-
----
-
-## 3. The 3-Stage God's Eye Chokepoint Funnel
-
-Rather than generating sporadic signals, the engine filters every potential trade through a three-stage mathematical funnel:
-
-```mermaid
-flowchart TD
-    A["Stage 1: Precursor Accumulation\n(HTF 4H/1H Bias + Discount/Premium Dealing Range + SMT Divergence)"] --> B["Stage 2: Velocity Inflection\n(5m CISD: Change in State of Delivery + Fair Value Gap Displacement)"]
-    B --> C["Displacement Exhaustion & ADR Check\n(Did move travel > 70% of ADR? If yes, VETO)"]
-    C -->|Pass| D["Stage 3: Chokepoint Intercept\n(Limit order placed at FVG edge / Order Block)"]
-    D --> E["Defensive Dual-Tranche Governor\n(+0.78R BE Lock | 70% @ 1.25R TP1 | 30% Runner TP2)"]
-```
-
-### Stage 1: Precursor Accumulation
-- Determines multi-timeframe directional bias using 4H/1H swing pivots.
-- Computes Dealing Range % ($0\% = \text{Absolute Low}, 100\% = \text{Absolute High}$).
-  - Longs only permitted in **Discount (< 50%)**.
-  - Shorts only permitted in **Premium (> 50%)**.
-- Detects **SMT (Smart Money Tool) Divergences** between correlated assets:
-  - `EURUSD` vs `GBPUSD`
-  - `NAS100` vs `US500`
-  - `XAUUSD` vs `XAGUSD`
-  - `WTI` vs `BRENT`
-
-### Stage 2: Velocity Inflection
-- **Change in State of Delivery (CISD)**: Identifies the precise candle where consecutive selling closes switch to impulsive buying (or vice versa), breaking intermediate structural swing points.
-- **Fair Value Gap (FVG)**: Quantifies true institutional displacement ($Low_{t} > High_{t-2}$ for bullish gaps).
-- **Session Killzone Gating**: Enforces trades during peak liquidity windows:
-  - London Open (02:00 – 05:00 NY)
-  - NY AM Session (07:00 – 10:00 NY)
-  - NY 09:50 – 10:10 Macro Window
-  - NY PM Session (13:00 – 16:00 NY)
-
-### Stage 3: Chokepoint Intercept & Dual-Tranche Governor
-- Eliminates adverse selection by placing limit orders strictly within the unmitigated chokepoint box.
-- Governs trade lifecycle defensively:
-  - **Breakeven Shift**: Once trade achieves $+0.78R$ favorable excursion, stop-loss moves to $+0.05R$ locking in commissions and preventing winning trades from turning negative.
-  - **Tranche 1 (70%)**: Closes automatically at $+1.25R$ target.
-  - **Tranche 2 (30%)**: Trails stop behind subsequent swing lows/highs to extract extended runner profits.
-
----
-
-## 4. Curated Non-Synthetic Universe
-
-Strictly excludes random number generator (RNG) indices (e.g. Volatility 75, Crash/Boom, Jump indices). Focused entirely on real-world interbank capital flows:
-
-| Category | Symbols | SMT Correlated Pair | Primary Data Feed |
-| :--- | :--- | :--- | :--- |
-| **Precious Metals** | `XAUUSD` (Gold), `XAGUSD` (Silver) | Gold ↔ Silver | Deriv Public WS / Yahoo |
-| **Forex Majors** | `EURUSD`, `GBPUSD`, `USDJPY`, `AUDUSD`, `USDCAD`, `EURJPY` | EURUSD ↔ GBPUSD | Deriv Public WS / Yahoo |
-| **Equity Indices** | `NAS100` (Tech 100), `US500` (S&P), `US30` (Dow), `DE40` (DAX) | NAS100 ↔ US500 | Deriv Public WS / Yahoo |
-| **Commodities** | `WTI` (Crude Oil), `BRENT` (Brent Crude) | WTI ↔ Brent | Fast HTTP / Yahoo |
-| **Liquid Equities** | `NVDA`, `AAPL`, `TSLA`, `MSFT`, `AMZN`, `GOOGL` | NAS100 Correlated | Fast HTTP / Yahoo |
-
----
-
-## 5. Zero-Lag Hybrid Feed Architecture
-
-1. **Browser Direct WebSocket**: Embedded `wss://api.derivws.com/trading/v1/options/ws/public` connection streams live sub-second tick pulses directly into TradingView Lightweight Charts with zero middleman overhead.
-2. **Delta Bar Cache**: Bars are stored in incremental JSON disk caches (`.cache/bars/`), updating only newly closed candles. Scanner executes multi-market evaluations in **under 2.5 seconds** across the entire universe.
-3. **Resilient Fallback**: If Deriv public endpoint is under maintenance, seamless fallback to high-throughput HTTP feeds ensures 100% uptime.
-
----
-
-## 6. Project Architecture
-
-```
-gods-eye-flux/
-├── flux_engine/
-│   ├── __init__.py           # Package entrypoint
-│   ├── universe.py           # Institutional universe definitions, pip sizes, spreads, killzones
-│   ├── feed.py               # Zero-lag Deriv WebSocket + HTTP multiplexed delta cache
-│   ├── engine.py             # 3-Stage Chokepoint Intercept state machine & Dual-Tranche Governor
-│   ├── research.py           # Quantitative Research Lab: EV, Walk-forward OOS split, Exit Matrix
-│   └── scanner.py            # Parallel multi-market radar scanner
-├── web/
-│   ├── index.html            # High-contrast institutional dark UI (Live Radar + Research Lab + Benchmark)
-│   └── lightweight-charts... # Standalone TradingView lightweight charts library
-├── api/
-│   ├── scan.py               # Vercel serverless /api/scan endpoint
-│   └── research.py           # Vercel serverless /api/research endpoint
-├── run_local.py              # Multi-threaded local Python server (port 8090)
-├── vercel.json               # Cloud deployment configuration
-├── requirements.txt          # Lightweight dependencies (urllib3)
-└── README.md
-```
-
----
-
-## 7. Quick Start (Local Setup)
-
-### Prerequisites
-- Python 3.10 or higher.
-- Standard library HTTP/threading.
-
-### 1. Clone & Run
 ```bash
-git clone https://github.com/Olumidenana/gods-eye-flux.git
-cd gods-eye-flux
-
-# Start the local server
-python run_local.py
+python -m unittest discover -s tests -t .          # test suite
+python -m ict_trader demo --report demo.html       # whole pipeline on synthetic data
 ```
 
-### 2. Access the Platform
-Open your browser to:
+`demo` uses a random walk that has no edge by construction, so it **should** lose a
+little to costs. If a configuration looks profitable on it, that configuration is overfit.
+
+## Validation pipeline (proposal §3)
+
+Export M5 history from MT5 (or any source) to CSV with `time,open,high,low,close[,volume]`
+columns, and an economic calendar to CSV (see `examples/calendar.example.csv`).
+
+```bash
+# 1. Backtest, with an HTML report showing every trade and the rule behind it
+python -m ict_trader --config examples/config.example.toml backtest \
+    --data data/EURUSD_M5.csv --tz UTC --news data/calendar.csv --report reports/eurusd.html
+
+# 2. Walk-forward: tune on 6 months, test on the next unseen month, roll forward
+python -m ict_trader --config examples/config.example.toml walkforward \
+    --data data/EURUSD_M5.csv --news data/calendar.csv --grid examples/grid.example.json
+
+# 3. Demo account, dry run (logs what it would do, sends nothing)
+python -m ict_trader --config my.toml live --news data/calendar.csv
+
+# 4. Demo account, sending orders
+python -m ict_trader --config my.toml live --news data/calendar.csv --execute
 ```
-http://127.0.0.1:8090
+
+Only the **out-of-sample** walk-forward numbers count. The report and CLI print a
+warning unless there are at least 30 trades and mean R is more than about two
+standard errors above zero.
+
+> **Timezones matter.** MT5 CSV exports are in broker server time, often UTC+2/+3.
+> Pass `--tz` (e.g. `--tz Europe/Athens`, or the IANA zone matching your broker) or
+> every killzone will be shifted by hours.
+
+## Going live (MT4 or MT5)
+
+Both run on Windows next to the MetaTrader terminal, normally a Windows VPS so it
+trades while your PC is off. Install Python 3.11+ there and copy this repository over.
+
+### MetaTrader 5 (official Python API)
+
+```powershell
+pip install MetaTrader5
+$env:MT5_LOGIN="..."; $env:MT5_PASSWORD="..."; $env:MT5_SERVER="..."
+python -m ict_trader --config my.toml live --platform mt5 --news calendar.csv            # dry run
+python -m ict_trader --config my.toml live --platform mt5 --news calendar.csv --execute  # trades
 ```
 
-### 3. Key Capabilities:
-- **Actionable Buy/Sell & Breakeven Alerts**: Instant audio chimes (Web Audio API) and native desktop push notifications for every Stage 3 Intercept trigger (with exact Entry, Invalidation SL, and TP levels), plus audible alerts when a trade reaches +0.78R MFE locking Breakeven.
-- **Multi-Timeframe Engine (1m, 5m, 15m, 1h, 4h)**: Seamlessly toggle between 1-minute scalping and 4-hour macro swings with 100% mathematical consistency across Radar and Research Lab.
-- **Institutional PDF & CSV Export**: Export comprehensive backtest audit reports formatted for executive presentation with a single click. Includes walk-forward metrics, comparative exit matrix, and the complete trade-by-trade ledger.
+### MetaTrader 4 (ICTBridge Expert Advisor)
 
----
+MT4 has no Python API, so a small EA (`mql4/ICTBridge.mq4`) publishes prices and
+account data and executes the orders the engine sends. It makes no decisions itself.
 
-## 8. Deployment (Vercel)
+1. In MT4: **File → Open Data Folder**, copy `ICTBridge.mq4` into `MQL4/Experts/`, then
+   in MetaEditor open it and press **Compile**.
+2. Open one chart of the traded symbol on the strategy timeframe (M5 by default),
+   drag **ICTBridge** onto it, tick **Allow live trading**, and turn **AutoTrading** on.
+   Keep `MagicNumber` equal to `live.magic` in your config.
+3. Set `bridge_dir` in the `[live]` section of your config to the shared folder
+   `C:\Users\<you>\AppData\Roaming\MetaQuotes\Terminal\Common\Files`.
+4. Run:
 
-Deploy to Vercel with zero configuration:
-1. Connect your GitHub repository `Olumidenana/gods-eye-flux` to Vercel.
-2. Leave Environment Variables **EMPTY** (zero keys required).
-3. Click **Deploy**. Vercel will automatically serve the static dashboard and deploy `/api/scan` and `/api/research` as serverless Python functions!
+```powershell
+python -m ict_trader --config my.toml live --platform mt4 --news calendar.csv            # dry run
+python -m ict_trader --config my.toml live --platform mt4 --news calendar.csv --execute  # trades
+```
 
----
+The engine refuses to start if the EA's heartbeat is stale, the chart timeframe is wrong,
+or AutoTrading is off. If a broker rejects stops on market orders (common on ECN), the EA
+opens the trade and attaches stops right after, and **closes it at once if the stop cannot
+be attached**. It never leaves an unprotected position.
 
-## License
-MIT License. Built for precision quantitative research and disciplined institutional execution.
+### Trading gold and GBPUSD together
+
+Run one copy per instrument, each with its own config (`examples/xauusd.toml`,
+`examples/gbpusd.toml`). They use different magic numbers and journals, so they never
+touch each other's trades. On MT4, attach ICTBridge to one chart of each symbol, and set
+each EA's `MagicNumber` to match its config.
+
+```powershell
+python -m ict_trader --config examples/xauusd.toml live --news calendar.csv --execute
+python -m ict_trader --config examples/gbpusd.toml live --news calendar.csv --execute   # second window
+```
+
+Both read the same account equity, so the daily and weekly loss floors act on the whole
+account: if the account drops 2% in a day, both stop. Risk per trade applies to each, so
+with both in a trade at once you are risking 2 x `risk_per_trade_pct`. One `STOP` file in
+the shared folder stops both. Check every value marked CHECK against your broker's symbol
+specification. Gold in particular differs between brokers (symbol name, lot size, spread).
+
+### Server time
+
+Set `live.server_timezone` to your broker's server clock. The default `NY+7` (UTC+2 winter /
+UTC+3 summer) fits most FX brokers. Check it against the time shown in Market Watch.
+
+### Safeguards
+
+- Dry run unless `--execute`; refuses a real-money account unless `--allow-real-account`.
+- Refuses to start without a news calendar while the news filter is enabled.
+- Historical bars only warm up levels. Signals older than `live.max_signal_age_seconds` are ignored.
+- Reward:risk is re-checked at the live price before every order.
+- Create a file named `STOP` (configurable) to flatten all positions and stop.
+- Every decision, entry and exit is written to `journal.sqlite`.
+
+The news calendar must be refreshed (e.g. weekly) from your calendar provider.
+
+## Web app
+
+`index.html` (deployed to Vercel) and `web/index.html` (Netlify) are a static trading desk:
+live New York killzone clock, sample setups, position-size calculator, pre-trade checklist
+and the full rule playbook. They are generated from `web/template.html` and `RULES.md`, so
+after editing either, rebuild with:
+
+```bash
+python scripts/build_web.py
+```
+
+### Live signals and alerts
+
+`api/scan.py` is a Vercel serverless function. On each call it downloads recent 5-minute
+bars (Yahoo Finance: GC, ES and NQ futures, and GBPUSD/EURUSD quotes), replays them through
+the same strategy and backtester, and returns today's signals with outcomes, the decision
+log and a track record (`ict_trader/scanner.py`). The site's Signals tab reads it.
+
+`/api/scan?notify=1` also pushes new signals and trade results to the ntfy topic
+`ictflux-signals-x7q4m2` (override with the `NTFY_TOPIC` env var) and to Telegram if
+`TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` are set. ntfy's message history is used to
+avoid duplicates, so the endpoint can be called as often as you like.
+**Data feeds:** by default the scanner reads real-time 5-minute candles for ~60 markets
+(forex majors, crosses and exotics, metals, global indices, crypto) from Deriv's public
+public WebSocket (`wss://api.derivws.com/trading/v1/options/ws/public`): no account, app id
+or token needed, available in Nigeria. The legacy endpoint is a fallback
+(`DERIV_LEGACY_APP_ID`, default 1089). A registered Deriv app id is only needed later for
+OAuth login and trading.
+Markets Deriv doesn't list fall back to delayed Yahoo data. Alternatives: set
+`OANDA_API_TOKEN` to use OANDA, or `DATA_SOURCE=yahoo` for the delayed 5 core markets only.
+Markets without a hand-tuned config in `examples/` scale their thresholds to their own recent
+5-minute range. `/api/history` serves the 30-day track record, cached for 30 minutes.
+For alerts within a minute of each candle closing, have a free scheduler such as
+cron-job.org call `/api/scan?notify=1` every minute.
+`.github/workflows/scan.yml` is a slower fallback that calls it every 10 minutes in trading hours; set the
+`SCAN_URL` repository variable to the production URL. Optional: set `CRON_SECRET` in
+Vercel (and as a repo secret) so only the scheduler can trigger pushes.
+
+**Timeframes:** `/api/scan?tf=1|2|3|5|15` and `/api/history?tf=…` run every market on that
+execution timeframe. 5-minute uses the hand-tuned configs in `examples/`; other timeframes
+scale each market's thresholds to its own range on that timeframe. Push alerts follow the
+`tf` of the cron URL (default 5); add another cron with `&tf=1` for 1-minute alerts.
+
+**Trader styles:** scalp (1/2/3m), intraday (5/15m), swing (1h: any hour, prior-day
+levels, held until stop or target) and long-term (4h: prior-week levels, `level_period =
+"week"`). `tf=60` and `tf=240` select swing and long-term in every API.
+
+**Plans:** Free = signals, alerts, sessions, chart, calculator, track record. Pro =
+plain-English "why this signal" lessons, replays, research lab, playbook, checklist and the
+bot. Pro is a client-side preview until accounts and payments exist.
+
+**Signal model:** the main live model is the full ICT 2022 model (`ict_trader/ict2022.py`):
+killzone -> liquidity sweep -> displacement market-structure shift -> fair value gap in
+premium/discount -> limit order in the gap -> stop beyond the sweep -> target at opposing
+liquidity (min 1.5R). Pending limits are shown as staged orders. `SIGNAL_MODEL=sweep`
+makes the original sweep-and-reclaim engine (Turtle Soup) the main model instead. Deriv
+Volatility indices run the same price model with no time filter.
+
+**Models and building blocks:** the scan runs every *trade model* side by side (the ICT 2022
+model, Silver Bullet, OTE, Turtle Soup and the rest). A model is a complete trade recipe
+whose trade the adviser's judgement matrix rules on: a score out of 100 and a call of
+PULL THE TRIGGER, SIZE DOWN or STAND DOWN. The parts a model is built from (direction,
+filters, entry zones, targets, trade management, stops) are *building blocks*: the Research
+lab and the custom builder use them, but they are not in the default scan, never alert and
+never count as "a model agrees". See [docs/MODELS.md](docs/MODELS.md).
+
+### Research lab
+
+`/api/research?symbol=R_75&tf=5&mode=ict` backtests the engine on months of real Deriv
+candles for any symbol and execution timeframe (1, 2, 3, 5 or 15 minutes), in two time
+modes: `ict` (killzones) and `allday` (price rules at any hour). It reports setups per day,
+win rate, expectancy, drawdown and whether the edge is distinguishable from luck
+(`ict_trader/research.py`). The site's Research lab page runs a grid of these. `&model=`
+takes a trade model, a single building block (to see what it adds to the ICT 2022 model) or
+a `custom:entry=...;stop=...;target=...;filter=...;mgmt=...` build; see
+[docs/MODELS.md](docs/MODELS.md).
+
+## Layout
+
+| Path | Purpose |
+|------|---------|
+| `ict_trader/config.py` | All tunable rules (TOML-loadable) |
+| `ict_trader/sessions.py` | NY session clock, DST-safe killzones, look-ahead-free reference levels |
+| `ict_trader/strategy.py` | Sweep-and-reverse state machine with an audit log (the Turtle Soup model) |
+| `ict_trader/models.py` | The model registry: which names are trade models and which are building blocks, and how each is built |
+| `ict_trader/advisor.py` | The judgement matrix: scores a trade out of 100 and says PULL THE TRIGGER, SIZE DOWN or STAND DOWN (see `docs/MODELS.md`) |
+| `ict_trader/news.py` | Economic-calendar blackout filter |
+| `ict_trader/risk.py` | Hard limits and lot sizing |
+| `ict_trader/backtest.py` | Conservative bar-by-bar simulator (spread, commission, stop-first) |
+| `ict_trader/walkforward.py` | Rolling out-of-sample validation |
+| `ict_trader/report.py` | HTML performance dashboard |
+| `ict_trader/live.py` | Live/demo runner shared by both platforms |
+| `ict_trader/broker/mt5.py` | MetaTrader 5 adapter |
+| `ict_trader/broker/mt4.py`, `mql4/ICTBridge.mq4` | MetaTrader 4 file bridge and its Expert Advisor |
+
+## Not yet built
+
+- **Rule extraction from the trader's YouTube content** (proposal §3, step 1). Defaults
+  in `RULES.md` are generic ICT conventions until confirmed with the trader.
+- Comparing the engine against the trader's own trade journal.
+- Live monitoring dashboard over `journal.sqlite`. Backtests already produce an HTML report.
+- Additional confirmation types (market-structure shift, FVG) if the trader uses them.
+
+## Expectations
+
+No system can guarantee profit, and most retail FX/CFD accounts lose money. What this
+code guarantees is that the rules are explicit, the tests are honest, and nothing reaches
+live capital without passing walk-forward and demo stages first.

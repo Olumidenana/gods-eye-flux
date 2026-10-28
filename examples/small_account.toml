@@ -1,0 +1,103 @@
+# Small Account Micro-Compounding Configuration ($10 - $50 Starting Capital)
+# Specifically designed for traders with low initial capital.
+#
+# Rules Implemented:
+# - SA-02: Micro-account fixed risk floor allows 0.01 lot execution instead of skipping
+# - SA-03: Strict 1:3R minimum asymmetric reward-to-risk filter
+# - SA-04: Milestone geometric compounding tiers ($25 -> 0.01, $50 -> 0.02, $100 -> 0.03)
+# - FV-01 / FV-02: 3-candle Fair Value Gap with 50% displacement equilibrium filter
+# - SW-02: Enforced liquidity purging order (BSL before SSL for shorts, SSL before BSL for longs)
+# - SL-04 / SL-05: 50% stop trimming and 75% Breakeven lock
+
+initial_equity = 20.0
+
+[instrument]
+symbol = "GBPUSD"
+asset_class = "forex"
+pip_size = 0.0001
+spread_pips = 1.0
+contract_size = 100000
+commission_per_lot = 0.0     # standard micro accounts often include commission in spread
+quote_to_account_rate = 1.0
+volume_step = 0.01
+min_lots = 0.01
+
+[strategy]
+timeframe_minutes = 5
+day_rollover = "17:00"
+killzones = [
+  { name = "london",   start = "02:00", end = "05:00" },
+  { name = "new_york", start = "07:00", end = "10:00" },
+]
+reference_ranges = [
+  { name = "asia", start = "20:00", end = "00:00" },
+]
+use_prior_day_levels = true
+invalidate_levels_taken_outside_killzone = true
+min_sweep_pips = 0.5
+max_confirm_bars = 3
+stop_buffer_pips = 1.0
+min_stop_pips = 4.0
+max_stop_pips = 15.0         # tighter stop cap for small account preservation
+
+target_mode = "opposite_level"
+target_rr = 3.0
+min_rr = 1.5
+
+# Small Account Specifics (SA-03)
+small_account_mode = true
+small_account_min_rr = 3.0   # strict 1:3R minimum (risk $1.00 to make $3.00+)
+
+# Core ICT Filters (FV-01, FV-02, SW-02)
+require_fvg = true
+fvg_in_premium_discount = true
+enforce_liquidity_purge_order = true
+
+# Intraday Stop Trimming (SL-04, SL-05)
+trim_stop_at_50_pct = true
+move_be_at_75_pct = true
+
+max_signals_per_day = 1
+flatten_time = "16:00"
+
+[risk]
+risk_per_trade_pct = 1.0
+max_daily_loss_pct = 5.0     # daily floor buffer for micro account
+max_weekly_loss_pct = 10.0
+max_consecutive_losses = 3
+max_trades_per_day = 1       # highest discipline for small account
+max_open_positions = 1
+max_lots = 0.05
+
+# Small Account Mode & Compounding Engine (SA-02, SA-04)
+small_account_mode = true
+fixed_risk_dollars = 1.0     # ~$1.00 base risk on 0.01 lot GBPUSD
+compounding_milestones = [
+  [10.0, 0.01],
+  [25.0, 0.01],
+  [50.0, 0.02],
+  [100.0, 0.03],
+  [200.0, 0.05],
+]
+
+# Ep 41 Dynamic Risk Reduction
+enable_dynamic_risk_reduction = true
+loss_recovery_threshold_pct = 50.0
+
+[news]
+enabled = true
+impacts = ["high"]
+minutes_before = 30
+minutes_after = 30
+flatten_minutes_before = 5
+
+[live]
+platform = "mt5"
+bridge_timeout_seconds = 15
+server_timezone = "NY+7"
+poll_seconds = 5
+magic = 20261001
+deviation_points = 10
+max_signal_age_seconds = 120
+kill_switch_file = "STOP"
+journal_path = "journal_small_account.sqlite"

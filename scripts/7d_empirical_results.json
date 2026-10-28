@@ -1,0 +1,35 @@
+[
+  {
+    "market": "EUR/USD",
+    "symbol": "frxEURUSD",
+    "model": "sweep",
+    "time": "2026-10-19T06:10:00+00:00",
+    "direction": "long",
+    "entry": 1.122322,
+    "exit": 1.1220750000000002,
+    "r": -1.0,
+    "reason": "SL stop loss"
+  },
+  {
+    "market": "Volatility 10 Index",
+    "symbol": "R_10",
+    "model": "sweep",
+    "time": "2026-10-21T21:10:00+00:00",
+    "direction": "short",
+    "entry": 4900.643,
+    "exit": 4902.914,
+    "r": -1.0,
+    "reason": "SL stop loss"
+  },
+  {
+    "market": "Volatility 10 Index",
+    "symbol": "R_10",
+    "model": "sweep",
+    "time": "2026-10-16T23:15:00+00:00",
+    "direction": "short",
+    "entry": 4876.23,
+    "exit": 4878.437,
+    "r": -1.0,
+    "reason": "SL stop loss"
+  }
+]

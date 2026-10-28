@@ -1,0 +1,21 @@
+# Multi-Asset Portfolio Configuration (SaaS Foundation Edition)
+# Runs concurrent real-time scanning & execution across Forex, Gold, and Indices.
+#
+# Monitored Instruments:
+# - GBPUSD (British Pound / US Dollar)
+# - EURUSD (Euro / US Dollar)
+# - XAUUSD (Gold Spot)
+# - USDJPY (US Dollar / Japanese Yen)
+
+symbols = [
+  "examples/gbpusd.toml",
+  "examples/xauusd.toml",
+]
+
+max_portfolio_open_positions = 2
+
+# Global Telegram & Discord Alerts
+[notifier]
+enabled = true
+# Optional: Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env
+# Optional: Set DISCORD_WEBHOOK_URL in .env

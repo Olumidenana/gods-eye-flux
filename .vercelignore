@@ -1,0 +1,11 @@
+pyproject.toml
+uv.lock
+tests/
+reports/
+scripts/
+docs/
+rules/
+mql4/
+start_autonomous.ps1
+journal*.sqlite
+db/

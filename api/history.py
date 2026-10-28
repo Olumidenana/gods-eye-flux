@@ -28,7 +28,7 @@ HIST_FRESH_S = 30 * 60
 HIST_STALE_S = 86400       # a saved record may stand in while a fresh one is built, for a day at most
 FORCE_MIN_AGE_S = 5 * 60   # force=1 does nothing when the saved record is younger than this
 LOCK_S = 150               # a rebuild that has not finished in this long is presumed dead
-TOP_KEYS = {"XAUUSD", "GBPUSD", "EURUSD", "US500", "NAS100", "USDJPY", "USDCHF", "AUDUSD", "USDCAD", "NZDUSD", "R_75", "R_100", "1HZ75V", "1HZ100V"}
+TOP_KEYS = {"XAUUSD", "GBPUSD", "EURUSD", "US500", "NAS100", "USDJPY", "USDCHF", "AUDUSD", "USDCAD", "NZDUSD", "XAGUSD", "WTI", "US30"}
 _BUILDING: dict[int, float] = {}   # this instance's own lock, for when the shared store is not reachable
 
 

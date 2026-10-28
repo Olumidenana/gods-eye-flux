@@ -33,7 +33,7 @@ class handler(BaseHTTPRequestHandler):
             days = int(g("days")) if g("days") else None
             if days is not None:
                 days = max(1, min(days, 1825 if tf >= 240 else 365))
-            symbol = g("symbol", "R_75")
+            symbol = g("symbol", "XAUUSD")
             if not symbol.replace("_", "").isalnum() or len(symbol) > 20:
                 raise ValueError("bad symbol")
             label = (g("label") or "")[:40] or None

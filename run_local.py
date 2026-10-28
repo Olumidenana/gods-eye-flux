@@ -1,24 +1,27 @@
-"""Local & Production Multi-Threaded Server for God's Eye × ICT Flux."""
+"""Local & Production Server for God's Eye Flux."""
 
 from __future__ import annotations
 
 import json
 import mimetypes
 import os
+import sys
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from flux_engine.research import run_multi_market_benchmark, run_research_backtest
-from flux_engine.scanner import scan_live_radar
-
 ROOT = Path(__file__).resolve().parent
-WEB_DIR = ROOT / "web"
+sys.path.insert(0, str(ROOT))
+
+from ict_trader.scanner import scan, universe
+from ict_trader.research import research
+
+SCAN_TOP_KEYS = {"XAUUSD", "GBPUSD", "EURUSD", "US500", "NAS100", "USDJPY", "USDCHF", "AUDUSD", "USDCAD", "NZDUSD", "XAGUSD", "WTI", "US30"}
 
 
 class FluxRequestHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=str(WEB_DIR), **kwargs)
+        super().__init__(*args, directory=str(ROOT), **kwargs)
 
     def log_message(self, format: str, *args) -> None:
         pass
@@ -39,11 +42,10 @@ class FluxRequestHandler(SimpleHTTPRequestHandler):
 
         if parsed.path == "/api/scan":
             tf = int(q.get("tf", ["5"])[0])
-            days = int(q.get("days", ["12"])[0])
-            symbols_raw = q.get("symbols", [""])[0]
-            keys = [s.strip().upper() for s in symbols_raw.split(",") if s.strip()] if symbols_raw else None
             try:
-                res = scan_live_radar(tf_minutes=tf, keys=keys, days=days)
+                u = universe()
+                target_markets = tuple(m for m in u if m.key in SCAN_TOP_KEYS) or u[:12]
+                res = scan(tf=tf, markets=target_markets, light=True)
                 self._send_json(200, res)
             except Exception as e:
                 self._send_json(500, {"ok": False, "error": f"{type(e).__name__}: {e}"})
@@ -53,13 +55,9 @@ class FluxRequestHandler(SimpleHTTPRequestHandler):
             tf = int(q.get("tf", ["5"])[0])
             days = int(q.get("days", ["45"])[0])
             mode = q.get("mode", ["ict"])[0]
-            bench = q.get("benchmark", ["0"])[0] == "1"
             symbol = q.get("symbol", ["XAUUSD"])[0].upper()
             try:
-                if bench:
-                    res = run_multi_market_benchmark(tf_minutes=tf, days=days)
-                else:
-                    res = run_research_backtest(symbol=symbol, tf_minutes=tf, days=days, mode=mode)
+                res = research(symbol=symbol, tf=tf, days=days, mode=mode)
                 self._send_json(200, res)
             except Exception as e:
                 self._send_json(400, {"ok": False, "error": f"{type(e).__name__}: {e}"})
@@ -71,7 +69,7 @@ class FluxRequestHandler(SimpleHTTPRequestHandler):
 def main() -> None:
     port = int(os.environ.get("PORT", "8090"))
     server = ThreadingHTTPServer(("127.0.0.1", port), FluxRequestHandler)
-    print(f"God's Eye x ICT Flux Live Server running at http://127.0.0.1:{port}")
+    print(f"God's Eye Flux Live Server running at http://127.0.0.1:{port}")
     server.serve_forever()
 
 
